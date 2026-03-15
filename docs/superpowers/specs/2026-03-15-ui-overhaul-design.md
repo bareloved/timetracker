@@ -4,7 +4,7 @@ Redesign the menu bar dropdown and add new features to make TimeTracker feel pol
 
 ## Summary of Changes
 
-Seven improvements to the existing app:
+Eight improvements to the existing app:
 
 1. **Redesigned dropdown** — larger, data-rich panel with timeline, pulse chart, focus goal, progress bars
 2. **Timeline view** — horizontal bar showing the day's sessions as colored blocks
@@ -67,9 +67,9 @@ When disabled: just the clock icon (current behavior).
 
 Controlled by a `@AppStorage("showMenuBarText")` boolean, toggled in settings. Default: enabled.
 
-The title updates every 60 seconds via a timer (not every second — menu bar text updates are expensive). The dropdown timer still updates every second.
+The title updates every 10 seconds via a timer (string assignment on `NSStatusItem` is cheap). The dropdown timer still updates every second.
 
-Implementation: `MenuBarExtra` supports a `title` parameter that can be a dynamic string. Use `MenuBarExtra(content:label:)` with a custom label view.
+Implementation: `MenuBarExtra` with `.window` style and a dynamic `label:` view has known rendering issues on macOS 14 — the label may not update reactively. **Fallback approach:** Use `NSStatusItem` directly instead of relying on `MenuBarExtra`'s label. Create the `NSStatusItem` in `AppState`, update its `button?.title` on the timer. The `MenuBarExtra` popover is still wired to the same status item. If `MenuBarExtra(content:label:)` works reliably in testing, prefer that; otherwise fall back to `NSStatusItem`.
 
 ## 4. Daily Focus Goal
 
@@ -98,11 +98,13 @@ Store a mapping of `bundleId → NSImage` in the `ActivityMonitor` or a small `A
 
 In the UI, show 16x16 rounded icons inline with app names. Use `Image(nsImage:)` to bridge to SwiftUI.
 
+`NSRunningApplication.bundleURL` can be `nil` for system processes. The cache falls back to `NSWorkspace.shared.icon(for: .applicationBundle)` (generic app icon) when the bundle URL is unavailable.
+
 ## 6. Idle Return Popup
 
 When the user returns from idle (> 5 minutes), show a floating panel asking what they were doing.
 
-**Trigger:** `ActivityMonitor` detects transition from idle → active. It calls a new `onIdleReturn` callback with the idle duration.
+**Trigger:** `ActivityMonitor` detects transition from idle → active. To distinguish idle-detected pauses from user-initiated pauses, `ActivityMonitor` tracks an `idleStartTime: Date?` that is set only when `IdleDetector.isIdle()` causes the pause (not when `pause()` is called manually). When the user returns from idle, the monitor calls `onIdleReturn?(idleDuration)` with the elapsed time, then clears `idleStartTime`. User-initiated pause/resume does not trigger this callback.
 
 **Panel content:**
 - "Welcome back!" header with idle duration
@@ -113,7 +115,7 @@ When the user returns from idle (> 5 minutes), show a floating panel asking what
 **Behavior:**
 - If the user picks an option, create a calendar event for the idle period with that label
 - If they skip, no event is created (gap stays empty in calendar)
-- The panel is an `NSPanel` (floating, non-activating) — same approach as the settings window
+- The panel is an `NSPanel` with `styleMask: [.nonactivatingPanel, .titled, .closable]`, `.level = .floating`, and `.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]` so it appears regardless of which Space or fullscreen app the user returns to
 
 **Presets:** Stored in `@AppStorage` as a JSON array, editable in settings. Defaults: `["Meeting", "Break", "Away"]`.
 
@@ -121,9 +123,9 @@ When the user returns from idle (> 5 minutes), show a floating panel asking what
 
 Register `⌥⇧T` (Option+Shift+T) as a global keyboard shortcut to toggle pause/resume.
 
-Implementation: use `NSEvent.addGlobalMonitorForEvents(matching: .keyDown)` combined with `NSEvent.addLocalMonitorForEvents` to capture the hotkey regardless of which app is focused.
+Implementation: `NSEvent.addGlobalMonitorForEvents` only *observes* key events — it cannot consume them, so the keystroke would leak to the frontmost app. Instead, use `CGEvent.tapCreate` to create an event tap that can intercept and consume the hotkey. This requires Accessibility permission, which the app already requests. The `HotkeyManager` creates a `CFMachPort` event tap for `.keyDown` events, checks for the ⌥⇧T combination, consumes the event, and calls `AppState.togglePause()`.
 
-On trigger: call `AppState.togglePause()`. Optionally show a brief `NSUserNotification` or `UNUserNotificationCenter` banner: "TimeTracker paused" / "TimeTracker resumed".
+On trigger: show a brief `UNUserNotificationCenter` banner: "TimeTracker paused" / "TimeTracker resumed".
 
 The hotkey is displayed in the dropdown's tab bar as a hint.
 
@@ -135,7 +137,7 @@ Query `EKEventStore` for events in the "Time Tracker" calendar from Monday 00:00
 
 Display: same category breakdown layout as Today tab, but with weekly totals. Header shows total tracked time for the week.
 
-Implementation: add a `weeklyStats(for:)` method to `CalendarWriter` that queries events and returns `[String: TimeInterval]`.
+Implementation: add an `async` method `weeklyStats() -> [String: TimeInterval]` to `CalendarWriter` that queries events on a background thread and returns category totals. The query covers Monday 00:00 through yesterday 23:59 — the current day's data comes from `SessionEngine.todaySessions` to avoid inconsistency between the in-memory and calendar data sources.
 
 ## New Files
 
@@ -150,7 +152,7 @@ TimeTracker/
 │   ├── ActivityPulseView.swift    # NEW — vertical bar rhythm chart
 │   ├── FocusGoalView.swift        # NEW — ring chart + goal progress
 │   ├── IdleReturnPanel.swift      # NEW — floating idle return popup
-│   └── SettingsView.swift         # Modify — add goal, hotkey, menu bar text toggles
+│   └── SettingsView.swift         # Modify — add General tab with goal, menu bar text toggle
 ├── Services/
 │   ├── AppIconCache.swift         # NEW — caches NSImage app icons by bundleId
 │   ├── HotkeyManager.swift        # NEW — global ⌥⇧T registration
@@ -175,7 +177,28 @@ Other:         #8E8E93 (gray)
 (overflow):    #FFD60A (yellow)
 ```
 
-Colors are assigned by category name, not by order. Unknown categories get assigned from the overflow pool. The mapping is deterministic (hash-based) so colors are stable across sessions.
+Named categories get their assigned color. Unknown categories are assigned from an extended overflow palette of 4 additional colors: yellow, teal, brown, mint. Assignment is deterministic (hash of category name modulo overflow palette size). Two custom categories may share a color if there are more than 11 total categories — this is acceptable for a personal tool.
+
+## Settings UI Layout
+
+The settings window adds a **tab bar** at the top:
+- **Categories** tab (existing functionality — sidebar + detail pane for category rules)
+- **General** tab with:
+  - **Menu Bar** section: "Show timer in menu bar" toggle
+  - **Focus Goal** section: category picker + hours stepper (0.5h increments)
+  - **Idle Return** section: editable list of preset labels (add/remove)
+
+## Activity Pulse Details
+
+The pulse chart shows slots from first activity of the day to now. Each slot is 15 minutes. Bar height = proportion of active time in that slot (full height = 15 min active, half = 7.5 min). Color = the category with the most time in that slot. Empty slots (before first activity or during long idle) are not shown.
+
+## Animation Philosophy
+
+Minimal, functional animations only:
+- Tab switching: no animation (instant swap)
+- Progress ring: animates on first appearance with a 0.5s ease-out fill
+- Timeline and pulse: no entrance animation (render immediately)
+- Idle return panel: standard macOS window appearance (no custom animation)
 
 ## Non-Goals
 
