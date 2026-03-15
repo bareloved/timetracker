@@ -2,33 +2,62 @@ import SwiftUI
 
 struct CurrentSessionView: View {
     let session: Session
+    @State private var now = Date()
+
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Current Session")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 2) {
+            // Hero timer
+            Text(formattedTime)
+                .font(.system(size: 36, weight: .bold, design: .default))
+                .monospacedDigit()
+                .kerning(-2)
 
-            Text(session.category)
-                .font(.headline)
+            // Category + app icons
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(.green)
+                    .frame(width: 7, height: 7)
 
-            Text("\(session.appsUsed.joined(separator: ", ")) — \(formattedDuration)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                Text(session.category)
+                    .font(.system(size: 13, weight: .medium))
+
+                Text("·")
+                    .foregroundStyle(.secondary)
+
+                // App icons
+                ForEach(session.appsUsed.prefix(3), id: \.self) { appName in
+                    if let bundleId = appBundleId(for: appName) {
+                        Image(nsImage: AppIconCache.shared.icon(forBundleId: bundleId))
+                            .resizable()
+                            .frame(width: 14, height: 14)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+                }
+
+                Text(session.appsUsed.joined(separator: ", "))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .onReceive(timer) { self.now = $0 }
     }
 
-    private var formattedDuration: String {
-        let duration = session.duration
+    private var formattedTime: String {
+        let duration = now.timeIntervalSince(session.startTime)
         let hours = Int(duration) / 3600
         let minutes = (Int(duration) % 3600) / 60
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        }
-        return "\(minutes)m"
+        let seconds = Int(duration) % 60
+        return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+    }
+
+    // Look up bundleId from the ActivityMonitor's latest records
+    // For now, use NSWorkspace to find running apps by name
+    private func appBundleId(for appName: String) -> String? {
+        NSWorkspace.shared.runningApplications
+            .first(where: { $0.localizedName == appName })?
+            .bundleIdentifier
     }
 }
