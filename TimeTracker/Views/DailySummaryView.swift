@@ -5,19 +5,33 @@ struct DailySummaryView: View {
     let currentSession: Session?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Today")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
+        VStack(alignment: .leading, spacing: 6) {
             ForEach(summaries, id: \.category) { summary in
-                HStack {
+                HStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(CategoryColors.color(for: summary.category))
+                        .frame(width: 8, height: 8)
+
                     Text(summary.category)
-                        .font(.callout)
-                    Spacer()
+                        .font(.system(size: 12))
+
+                    GeometryReader { geo in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color(white: 0.17))
+                            .frame(width: geo.size.width, height: 4)
+                            .overlay(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(CategoryColors.color(for: summary.category))
+                                    .frame(width: geo.size.width * summary.proportion, height: 4)
+                            }
+                    }
+                    .frame(height: 4)
+
                     Text(summary.formattedDuration)
-                        .font(.callout)
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .frame(width: 48, alignment: .trailing)
                 }
             }
 
@@ -37,8 +51,15 @@ struct DailySummaryView: View {
         if let current = currentSession {
             totals[current.category, default: 0] += current.duration
         }
+
+        let maxDuration = totals.values.max() ?? 1
+
         return totals
-            .map { CategorySummary(category: $0.key, totalDuration: $0.value) }
+            .map { CategorySummary(
+                category: $0.key,
+                totalDuration: $0.value,
+                proportion: $0.value / maxDuration
+            )}
             .sorted { $0.totalDuration > $1.totalDuration }
     }
 }
@@ -46,13 +67,12 @@ struct DailySummaryView: View {
 private struct CategorySummary {
     let category: String
     let totalDuration: TimeInterval
+    let proportion: Double
 
     var formattedDuration: String {
         let hours = Int(totalDuration) / 3600
         let minutes = (Int(totalDuration) % 3600) / 60
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        }
+        if hours > 0 { return "\(hours)h \(minutes)m" }
         return "\(minutes)m"
     }
 }
