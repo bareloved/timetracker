@@ -11,6 +11,9 @@ final class ActivityMonitor {
 
     var onActivity: ((ActivityRecord) -> Void)?
     var onIdle: (() -> Void)?
+    var onIdleReturn: ((TimeInterval) -> Void)?
+    private var idleStartTime: Date?
+    private var isIdleDetected = false
 
     private let pollInterval: TimeInterval
 
@@ -46,7 +49,9 @@ final class ActivityMonitor {
 
     private func poll() {
         if IdleDetector.isIdle() {
-            if !isPaused {
+            if !isIdleDetected {
+                isIdleDetected = true
+                idleStartTime = Date()
                 isPaused = true
                 latestActivity = nil
                 onIdle?()
@@ -54,8 +59,20 @@ final class ActivityMonitor {
             return
         }
 
-        if isPaused {
+        // Returning from idle
+        if isIdleDetected {
+            isIdleDetected = false
             isPaused = false
+            if let start = idleStartTime {
+                let idleDuration = Date().timeIntervalSince(start)
+                idleStartTime = nil
+                onIdleReturn?(idleDuration)
+            }
+        }
+
+        if isPaused {
+            // Manual pause — don't poll
+            return
         }
 
         guard let frontApp = NSWorkspace.shared.frontmostApplication,
