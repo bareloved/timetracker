@@ -265,14 +265,11 @@ struct TimeTrackerApp: App {
                     MenuBarView(
                         sessionEngine: engine,
                         activityMonitor: appState.activityMonitor,
-                        calendarWriter: appState.calendarWriter,
                         accessibilityGranted: appState.accessibilityGranted,
-                        launchAtLoginEnabled: appState.launchAtLoginEnabled,
                         goalCategory: appState.goalCategory,
                         goalHours: appState.goalHours,
                         onPauseResume: appState.togglePause,
                         onOpenSettings: appState.openSettings,
-                        onToggleLaunchAtLogin: appState.toggleLaunchAtLogin,
                         onQuit: appState.quit
                     )
                 } else {
