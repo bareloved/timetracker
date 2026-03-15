@@ -245,6 +245,17 @@ struct TimeTrackerApp: App {
         }
     }
 
+    private func applyAppearance() {
+        switch appearance {
+        case "light":
+            NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark":
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        default:
+            NSApp.appearance = nil // follow system
+        }
+    }
+
     var body: some Scene {
         MenuBarExtra {
             Group {
@@ -273,6 +284,12 @@ struct TimeTrackerApp: App {
                 }
             }
             .preferredColorScheme(appearanceScheme)
+            .onChange(of: appearance) {
+                applyAppearance()
+            }
+            .onAppear {
+                applyAppearance()
+            }
         } label: {
             Text(appState.menuBarTitle)
         }
