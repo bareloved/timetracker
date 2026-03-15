@@ -8,7 +8,9 @@ final class AppState {
     var activityMonitor = ActivityMonitor()
     var sessionEngine: SessionEngine?
     var isReady = false
-    var accessibilityGranted = false
+    var accessibilityGranted: Bool {
+        AXIsProcessTrusted()
+    }
     var hotkeyManager = HotkeyManager()
     var idleReturnController = IdleReturnPanelController()
     @ObservationIgnored @AppStorage("showMenuBarText") var showMenuBarText = true
@@ -31,8 +33,6 @@ final class AppState {
             print("Failed to load config: \(error)")
             return
         }
-
-        accessibilityGranted = AXIsProcessTrusted()
 
         let engine = SessionEngine(config: config, calendarWriter: calendarWriter)
         self.sessionEngine = engine
