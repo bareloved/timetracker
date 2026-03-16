@@ -17,7 +17,7 @@ final class SessionEngine {
     private var lastActivityTime: Date?
     private var currentIntention: String?
 
-    private let shortSwitchThreshold: TimeInterval = 120  // 2 minutes
+    private let shortSwitchThreshold: TimeInterval = 300  // 5 minutes
     private let resumeThreshold: TimeInterval = 300       // 5 minutes
 
     init(config: CategoryConfig, calendarWriter: CalendarWriter?) {

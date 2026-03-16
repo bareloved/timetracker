@@ -1,11 +1,21 @@
 import EventKit
 import Foundation
+import AppKit
+
+struct CalendarEvent: Identifiable {
+    let id: String
+    let title: String
+    let startDate: Date
+    let endDate: Date
+    let color: NSColor
+    let calendarTitle: String
+}
 
 @MainActor
 final class CalendarReader {
 
     private let eventStore: EKEventStore
-    private let calendarName = "Time Tracker"
+    private let calendarName = "Loom"
 
     init(eventStore: EKEventStore) {
         self.eventStore = eventStore
@@ -48,6 +58,39 @@ final class CalendarReader {
             grouped[dayStart, default: []].append(session)
         }
         return grouped
+    }
+
+    // MARK: - Calendar Events (non-tracker)
+
+    var availableCalendars: [EKCalendar] {
+        eventStore.calendars(for: .event).filter { $0.title != calendarName }
+    }
+
+    func calendarEvents(forDay date: Date, excludingCalendarTitles excluded: Set<String> = []) -> [CalendarEvent] {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: date)
+        guard let end = cal.date(byAdding: .day, value: 1, to: start) else { return [] }
+
+        let calendars = eventStore.calendars(for: .event).filter {
+            $0.title != calendarName && !excluded.contains($0.title)
+        }
+        guard !calendars.isEmpty else { return [] }
+
+        let predicate = eventStore.predicateForEvents(withStart: start, end: end, calendars: calendars)
+        let events = eventStore.events(matching: predicate)
+
+        return events.compactMap { event in
+            guard let title = event.title, !title.isEmpty,
+                  !event.isAllDay else { return nil }
+            return CalendarEvent(
+                id: event.eventIdentifier ?? UUID().uuidString,
+                title: title,
+                startDate: event.startDate,
+                endDate: event.endDate,
+                color: NSColor(cgColor: event.calendar.cgColor) ?? .systemGray,
+                calendarTitle: event.calendar.title
+            )
+        }.sorted { $0.startDate < $1.startDate }
     }
 
     // MARK: - Private

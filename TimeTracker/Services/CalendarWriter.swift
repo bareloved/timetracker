@@ -1,6 +1,7 @@
 import EventKit
 import Foundation
 import AppKit
+import SwiftUI
 
 @Observable
 @MainActor
@@ -12,7 +13,44 @@ final class CalendarWriter {
     private var updateTimer: Timer?
     private(set) var isAuthorized = false
 
-    private let calendarName = "Time Tracker"
+    @ObservationIgnored @AppStorage("calendarName") var calendarName = "Loom"
+    @ObservationIgnored @AppStorage("calendarWriteEnabled") var writeEnabled = true
+    @ObservationIgnored @AppStorage("timeRounding") var timeRounding: Int = 5 // minutes
+
+    private func roundDown(_ date: Date) -> Date {
+        guard timeRounding > 0 else { return date }
+        let cal = Calendar.current
+        let comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let minute = (comps.minute ?? 0) / timeRounding * timeRounding
+        return cal.date(from: DateComponents(
+            year: comps.year, month: comps.month, day: comps.day,
+            hour: comps.hour, minute: minute, second: 0
+        )) ?? date
+    }
+
+    private func roundUp(_ date: Date) -> Date {
+        guard timeRounding > 0 else { return date }
+        let cal = Calendar.current
+        let comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        let minute = comps.minute ?? 0
+        let rounded = ((minute + timeRounding - 1) / timeRounding) * timeRounding
+        return cal.date(from: DateComponents(
+            year: comps.year, month: comps.month, day: comps.day,
+            hour: comps.hour, minute: rounded, second: 0
+        )) ?? date
+    }
+
+    var availableSources: [EKSource] {
+        eventStore.sources.filter { $0.sourceType == .calDAV || $0.sourceType == .local }
+    }
+
+    var currentCalendarTitle: String {
+        timeTrackerCalendar?.title ?? calendarName
+    }
+
+    var currentSourceTitle: String {
+        timeTrackerCalendar?.source.title ?? "Unknown"
+    }
 
     var sharedEventStore: EKEventStore { eventStore }
 
@@ -63,6 +101,34 @@ final class CalendarWriter {
         }
     }
 
+    func switchSource(to sourceTitle: String) {
+        guard let newSource = eventStore.sources.first(where: { $0.title == sourceTitle }) else { return }
+
+        // Create a new calendar under the new source
+        let calendar = EKCalendar(for: .event, eventStore: eventStore)
+        calendar.title = calendarName
+        calendar.source = newSource
+        calendar.cgColor = NSColor.systemBlue.cgColor
+
+        do {
+            try eventStore.saveCalendar(calendar, commit: true)
+            timeTrackerCalendar = calendar
+        } catch {
+            print("Failed to switch calendar source: \(error)")
+        }
+    }
+
+    func renameCalendar(to newName: String) {
+        guard !newName.isEmpty, let calendar = timeTrackerCalendar else { return }
+        calendar.title = newName
+        do {
+            try eventStore.saveCalendar(calendar, commit: true)
+            calendarName = newName
+        } catch {
+            print("Failed to rename calendar: \(error)")
+        }
+    }
+
     // MARK: - Notes Builder
 
     private static func buildNotes(session: Session) -> String {
@@ -85,6 +151,7 @@ final class CalendarWriter {
     // MARK: - Event Management
 
     func createEvent(for session: Session) {
+        guard writeEnabled else { return }
         ensureCalendarExists()
         guard let calendar = timeTrackerCalendar else { return }
 
@@ -92,8 +159,8 @@ final class CalendarWriter {
         event.title = session.category
         event.location = session.primaryApp
         event.notes = Self.buildNotes(session: session)
-        event.startDate = session.startTime
-        event.endDate = session.startTime.addingTimeInterval(300)
+        event.startDate = roundDown(session.startTime)
+        event.endDate = roundUp(session.startTime.addingTimeInterval(300))
         event.calendar = calendar
 
         do {
@@ -129,7 +196,7 @@ final class CalendarWriter {
             return
         }
 
-        event.endDate = session.endTime ?? Date()
+        event.endDate = roundUp(session.endTime ?? Date())
         event.notes = Self.buildNotes(session: session)
         event.location = session.primaryApp
 

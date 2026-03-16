@@ -79,6 +79,7 @@ final class AppState {
         launchPopupController.show(
             onStart: { [weak self] intention in
                 self?.startTracking(intention: intention)
+                self?.openMainWindow()
             },
             onDismiss: { }
         )
@@ -98,9 +99,12 @@ final class AppState {
         activityMonitor.stop()
     }
 
-    // MARK: - Main Window (stub)
+    // MARK: - Main Window
+
+    var openWindowAction: OpenWindowAction?
 
     func openMainWindow() {
+        openWindowAction?(id: "main")
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -206,7 +210,7 @@ final class AppState {
             backing: .buffered,
             defer: false
         )
-        window.title = "TimeTracker Settings"
+        window.title = "Loom Settings"
         window.contentView = NSHostingView(rootView: settingsView)
         window.center()
         window.makeKeyAndOrderFront(nil)
@@ -241,13 +245,13 @@ final class AppState {
 
     func setupWindowObservers() {
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { notification in
-            guard let window = notification.object as? NSWindow, window.title == "TimeTracker" else { return }
+            guard let window = notification.object as? NSWindow, window.title == "Loom" else { return }
             MainActor.assumeIsolated { _ = NSApp.setActivationPolicy(.regular) }
         }
         NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    let hasMainWindow = NSApp.windows.contains { $0.isVisible && $0.title == "TimeTracker" }
+                    let hasMainWindow = NSApp.windows.contains { $0.isVisible && $0.title == "Loom" }
                     if !hasMainWindow { NSApp.setActivationPolicy(.accessory) }
                 }
             }
@@ -316,6 +320,20 @@ struct TimeTrackerApp: App {
         }
     }
 
+    private func setAppIcon() {
+        // Try loading from the appiconset PNGs first
+        if let iconURL = Bundle.module.url(forResource: "icon_512x512@2x", withExtension: "png", subdirectory: "AppIcon.appiconset"),
+           let image = NSImage(contentsOf: iconURL) {
+            NSApp.applicationIconImage = image
+            return
+        }
+        // Fallback to .icns
+        if let icnsURL = Bundle.module.url(forResource: "AppIcon", withExtension: "icns"),
+           let image = NSImage(contentsOf: icnsURL) {
+            NSApp.applicationIconImage = image
+        }
+    }
+
     private func applyAppearance() {
         switch appearance {
         case "light":
@@ -340,8 +358,6 @@ struct TimeTrackerApp: App {
                         isTracking: engine.isTracking,
                         onStartTracking: { intention in appState.startTracking(intention: intention) },
                         onStopTracking: { appState.stopTracking() },
-                        onOpenSettings: appState.openSettings,
-                        onOpenWindow: { appState.openMainWindow() },
                         onQuit: appState.quit
                     )
                 } else {
@@ -360,13 +376,14 @@ struct TimeTrackerApp: App {
             }
             .onAppear {
                 applyAppearance()
+                setAppIcon()
             }
         } label: {
             Text(appState.menuBarTitle)
         }
         .menuBarExtraStyle(.window)
 
-        Window("TimeTracker", id: "main") {
+        Window("Loom", id: "main") {
             MainWindowView(appState: appState)
                 .preferredColorScheme(appearanceScheme)
         }

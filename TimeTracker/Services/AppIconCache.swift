@@ -28,6 +28,19 @@ final class AppIconCache {
         return NSWorkspace.shared.icon(for: .applicationBundle)
     }
 
+    func displayName(forBundleId bundleId: String) -> String? {
+        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first {
+            return app.localizedName
+        }
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId),
+           let bundle = Bundle(url: url) {
+            return bundle.infoDictionary?["CFBundleName"] as? String
+                ?? bundle.infoDictionary?["CFBundleDisplayName"] as? String
+                ?? url.deletingPathExtension().lastPathComponent
+        }
+        return nil
+    }
+
     func clearCache() {
         cache.removeAll()
     }

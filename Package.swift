@@ -2,19 +2,21 @@
 import PackageDescription
 
 let package = Package(
-    name: "TimeTracker",
+    name: "Loom",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "TimeTracker",
+            name: "Loom",
             path: "TimeTracker",
             resources: [
-                .copy("Resources/default-categories.json")
+                .copy("Resources/default-categories.json"),
+                .copy("Resources/AppIcon.appiconset"),
+                .copy("Resources/AppIcon.icns")
             ]
         ),
         .testTarget(
-            name: "TimeTrackerTests",
-            dependencies: ["TimeTracker"],
+            name: "LoomTests",
+            dependencies: ["Loom"],
             path: "TimeTrackerTests"
         )
     ]

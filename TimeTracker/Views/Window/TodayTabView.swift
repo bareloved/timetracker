@@ -37,18 +37,24 @@ struct TodayTabView: View {
                 .foregroundStyle(Theme.textPrimary)
 
             TextField("Intention (optional)", text: $intention)
-                .textFieldStyle(.roundedBorder)
-                .frame(maxWidth: 280)
+                .font(.system(size: 14, design: .serif))
+                .textFieldStyle(.plain)
+                .padding(12)
+                .frame(maxWidth: 360)
+                .background(Theme.backgroundSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.border))
 
             Button(action: {
                 onStart(intention.isEmpty ? nil : intention)
                 intention = ""
             }) {
                 Text("START SESSION")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
+                    .tracking(0.5)
                     .foregroundStyle(.white)
-                    .frame(maxWidth: 280)
-                    .padding(.vertical, 10)
+                    .frame(maxWidth: 360)
+                    .padding(.vertical, 12)
                     .background(CategoryColors.accent, in: RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)

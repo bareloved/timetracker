@@ -81,22 +81,38 @@ final class ActivityMonitor {
             return
         }
 
-        let windowTitle = Self.windowTitle(for: frontApp)
-
-        var pageURL: String? = nil
-        if BrowserTracker.isBrowser(bundleId: bundleId) {
-            pageURL = BrowserTracker.activeTabURL(for: frontApp)
-        }
-
+        // Fire record immediately — no AX calls on main thread
         let record = ActivityRecord(
             bundleId: bundleId,
             appName: appName,
-            windowTitle: windowTitle,
-            pageURL: pageURL,
+            windowTitle: nil,
+            pageURL: nil,
             timestamp: Date()
         )
         latestActivity = record
         onActivity?(record)
+
+        // Fetch window title + browser URL in background
+        let app = frontApp
+        let isBrowser = BrowserTracker.isBrowser(bundleId: bundleId)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let windowTitle = Self.windowTitle(for: app)
+            let pageURL = isBrowser ? BrowserTracker.activeTabURL(for: app) : nil
+
+            if windowTitle != nil || pageURL != nil {
+                DispatchQueue.main.async { [weak self] in
+                    let updated = ActivityRecord(
+                        bundleId: bundleId,
+                        appName: appName,
+                        windowTitle: windowTitle,
+                        pageURL: pageURL,
+                        timestamp: Date()
+                    )
+                    self?.latestActivity = updated
+                    self?.onActivity?(updated)
+                }
+            }
+        }
     }
 
     private static func windowTitle(for app: NSRunningApplication) -> String? {

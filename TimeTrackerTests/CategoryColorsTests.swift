@@ -1,7 +1,7 @@
 import Testing
 import SwiftUI
 import AppKit
-@testable import TimeTracker
+@testable import Loom
 
 @Suite("Category Colors")
 struct CategoryColorsTests {

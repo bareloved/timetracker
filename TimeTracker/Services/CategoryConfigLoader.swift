@@ -4,7 +4,7 @@ enum CategoryConfigLoader {
 
     static let appSupportDir: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return base.appendingPathComponent("TimeTracker")
+        return base.appendingPathComponent("Loom")
     }()
 
     static let defaultConfigPath: URL = {

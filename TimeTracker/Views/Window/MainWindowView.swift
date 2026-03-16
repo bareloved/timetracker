@@ -21,6 +21,8 @@ struct MainWindowView: View {
 
     @State private var selectedTab: AppTab = .today
 
+    @Environment(\.openWindow) private var openWindow
+
     var body: some View {
         VStack(spacing: 0) {
             // Tab content
@@ -57,7 +59,7 @@ struct MainWindowView: View {
                     }
                 case .settings:
                     if let currentConfig = try? CategoryConfigLoader.loadOrCreateDefault() {
-                        SettingsTabView(config: currentConfig) { newConfig in
+                        SettingsTabView(config: currentConfig, calendarWriter: appState.calendarWriter) { newConfig in
                             appState.saveConfig(newConfig)
                         }
                     }
@@ -99,5 +101,8 @@ struct MainWindowView: View {
         }
         .frame(minWidth: 500, minHeight: 600)
         .background(Theme.background)
+        .onAppear {
+            appState.openWindowAction = openWindow
+        }
     }
 }

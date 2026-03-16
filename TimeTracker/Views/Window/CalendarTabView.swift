@@ -8,7 +8,10 @@ struct CalendarTabView: View {
 
     @State private var selectedDate = Date()
     @State private var weekSessions: [Date: [Session]] = [:]
+    @State private var backgroundEvents: [CalendarEvent] = []
     @State private var showBackfill = false
+    @State private var showCalendarFilter = false
+    @State private var hiddenCalendars: Set<String> = []
 
     private let calendar = Calendar.current
 
@@ -79,6 +82,34 @@ struct CalendarTabView: View {
                         Image(systemName: "chevron.right")
                     }
                     .buttonStyle(.plain)
+
+                    Menu {
+                        if let reader = calendarReader {
+                            ForEach(reader.availableCalendars, id: \.calendarIdentifier) { cal in
+                                Button(action: {
+                                    if hiddenCalendars.contains(cal.title) {
+                                        hiddenCalendars.remove(cal.title)
+                                    } else {
+                                        hiddenCalendars.insert(cal.title)
+                                    }
+                                    loadBackgroundEvents()
+                                }) {
+                                    HStack {
+                                        if !hiddenCalendars.contains(cal.title) {
+                                            Image(systemName: "checkmark")
+                                        }
+                                        Text(cal.title)
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "calendar.badge.checkmark")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .frame(width: 24)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -112,7 +143,8 @@ struct CalendarTabView: View {
                 // Timeline
                 VerticalTimelineView(
                     sessions: selectedDaySessions,
-                    isToday: calendar.isDateInToday(selectedDate)
+                    isToday: calendar.isDateInToday(selectedDate),
+                    backgroundEvents: backgroundEvents
                 )
             }
 
@@ -152,6 +184,14 @@ struct CalendarTabView: View {
 
     private func loadWeekSessions() {
         weekSessions = calendarReader?.sessionsForWeek(containing: selectedDate) ?? [:]
+        loadBackgroundEvents()
+    }
+
+    private func loadBackgroundEvents() {
+        backgroundEvents = calendarReader?.calendarEvents(
+            forDay: selectedDate,
+            excludingCalendarTitles: hiddenCalendars
+        ) ?? []
     }
 
     private func backfillSession(category: String, start: Date, end: Date, intention: String?) {

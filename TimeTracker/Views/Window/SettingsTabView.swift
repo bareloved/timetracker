@@ -1,5 +1,6 @@
 import SwiftUI
 import ServiceManagement
+import UniformTypeIdentifiers
 
 enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "General"
@@ -32,16 +33,19 @@ struct SettingsTabView: View {
     @State private var newRelatedBundleId = ""
     @State private var newUrlPattern = ""
     @State private var showingSaveConfirmation = false
+    @State private var editingCalendarName = ""
 
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("showMenuBarText") private var showMenuBarText = true
     @AppStorage("goalCategory") private var goalCategory = "Coding"
     @AppStorage("goalHours") private var goalHours = 0.0
 
+    let calendarWriter: CalendarWriter
     let onSave: (CategoryConfig) -> Void
 
-    init(config: CategoryConfig, onSave: @escaping (CategoryConfig) -> Void) {
+    init(config: CategoryConfig, calendarWriter: CalendarWriter, onSave: @escaping (CategoryConfig) -> Void) {
         self._config = State(initialValue: config)
+        self.calendarWriter = calendarWriter
         self.onSave = onSave
     }
 
@@ -50,61 +54,129 @@ struct SettingsTabView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HSplitView {
-                // Sidebar
-                List(SettingsSection.allCases, selection: $selectedSection) { section in
-                    Label(section.rawValue, systemImage: section.icon)
-                        .tag(section)
-                }
-                .listStyle(.sidebar)
-                .frame(minWidth: 150, maxWidth: 180)
-
-                // Detail
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        switch selectedSection {
-                        case .general:
-                            generalSection
-                        case .notification:
-                            placeholderSection("Notification settings coming soon.")
-                        case .calendar:
-                            placeholderSection("Calendar integration settings coming soon.")
-                        case .category:
-                            categorySection
-                        case .window:
-                            windowSection
-                        case .browser:
-                            placeholderSection("Browser tracking settings coming soon.")
+        HStack(spacing: 0) {
+            // Sidebar
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(SettingsSection.allCases) { section in
+                    Button(action: { selectedSection = section }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: section.icon)
+                                .font(.system(size: 12))
+                                .frame(width: 16)
+                            Text(section.rawValue)
+                                .font(.system(size: 13))
                         }
+                        .foregroundStyle(selectedSection == section ? .white : Theme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                        .background(
+                            selectedSection == section
+                                ? CategoryColors.accent
+                                : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 6)
+                        )
                     }
-                    .padding(20)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-
-            // Bottom save bar
-            Divider()
-            HStack {
-                if showingSaveConfirmation {
-                    Text("Saved!")
-                        .foregroundStyle(.green)
-                        .font(.caption)
+                    .buttonStyle(.plain)
                 }
                 Spacer()
-                Button("Save") {
-                    onSave(config)
-                    showingSaveConfirmation = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        showingSaveConfirmation = false
+            }
+            .padding(10)
+            .frame(width: 170)
+            .background(Theme.backgroundSecondary)
+
+            // Divider
+            Rectangle()
+                .fill(Theme.border)
+                .frame(width: 1)
+
+            // Detail
+            VStack(spacing: 0) {
+                if selectedSection == .category {
+                    VStack(alignment: .leading, spacing: 16) {
+                        categorySection
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            switch selectedSection {
+                            case .general:
+                                generalSection
+                            case .notification:
+                                placeholderSection("Notification settings coming soon.")
+                            case .calendar:
+                                calendarSection
+                            case .window:
+                                windowSection
+                            case .browser:
+                                placeholderSection("Browser tracking settings coming soon.")
+                            default:
+                                EmptyView()
+                            }
+                        }
+                        .padding(24)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .keyboardShortcut("s", modifiers: .command)
-                .buttonStyle(.borderedProminent)
+
+                // Bottom save bar
+                Rectangle()
+                    .fill(Theme.border)
+                    .frame(height: 1)
+                HStack {
+                    if showingSaveConfirmation {
+                        Text("Saved!")
+                            .foregroundStyle(.green)
+                            .font(.system(size: 12))
+                    }
+                    Spacer()
+                    Button(action: {
+                        onSave(config)
+                        showingSaveConfirmation = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            showingSaveConfirmation = false
+                        }
+                    }) {
+                        Text("Save")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 6)
+                            .background(CategoryColors.accent, in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut("s", modifiers: .command)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Theme.backgroundSecondary)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(.bar)
+        }
+    }
+
+    // MARK: - Settings Card
+
+    private func settingsCard<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Theme.textTertiary)
+                .tracking(0.5)
+
+            VStack(alignment: .leading, spacing: 0) {
+                content()
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.background)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.border))
         }
     }
 
@@ -113,43 +185,175 @@ struct SettingsTabView: View {
     @ViewBuilder
     private var generalSection: some View {
         Text("General")
-            .font(.title2.weight(.semibold))
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(Theme.textPrimary)
 
-        GroupBox("Appearance") {
-            Picker("Theme", selection: $appearance) {
-                Text("Light").tag("light")
-                Text("Dark").tag("dark")
-                Text("System").tag("system")
-            }
-            .pickerStyle(.segmented)
-            .padding(4)
-        }
-
-        GroupBox("Menu Bar") {
-            Toggle("Show timer text in menu bar", isOn: $showMenuBarText)
-                .padding(4)
-        }
-
-        GroupBox("Focus Goal") {
-            VStack(alignment: .leading, spacing: 8) {
-                Picker("Category", selection: $goalCategory) {
-                    ForEach(Array(config.categories.keys.sorted()), id: \.self) { name in
-                        Text(name).tag(name)
-                    }
+        settingsCard("Appearance") {
+            HStack {
+                Text("Theme")
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Picker("", selection: $appearance) {
+                    Text("Light").tag("light")
+                    Text("Dark").tag("dark")
+                    Text("System").tag("system")
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 220)
+            }
+        }
+
+        settingsCard("Menu Bar") {
+            HStack {
+                Text("Show timer in menu bar")
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Toggle("", isOn: $showMenuBarText)
+                    .toggleStyle(.switch)
+                    .tint(CategoryColors.accent)
+                    .labelsHidden()
+            }
+        }
+
+        settingsCard("Focus Goal") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Category")
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Picker("", selection: $goalCategory) {
+                        ForEach(Array(config.categories.keys.sorted()), id: \.self) { name in
+                            Text(name).tag(name)
+                        }
+                    }
+                    .frame(width: 140)
+                }
+
+                Divider()
 
                 HStack {
                     Text("Daily target")
-                    Stepper(
-                        value: $goalHours,
-                        in: 0...12,
-                        step: 0.5
-                    ) {
-                        Text(goalHours > 0 ? String(format: "%.1fh", goalHours) : "Off")
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Text(goalHours > 0 ? String(format: "%.1fh", goalHours) : "Off")
+                        .foregroundStyle(Theme.textSecondary)
+                    Stepper("", value: $goalHours, in: 0...12, step: 0.5)
+                        .labelsHidden()
+                }
+            }
+        }
+    }
+
+    // MARK: - Calendar
+
+    @ViewBuilder
+    private var calendarSection: some View {
+        Text("Calendar")
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(Theme.textPrimary)
+
+        settingsCard("Calendar Sync") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Write sessions to calendar")
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { calendarWriter.writeEnabled },
+                        set: { calendarWriter.writeEnabled = $0 }
+                    ))
+                        .toggleStyle(.switch)
+                        .tint(CategoryColors.accent)
+                        .labelsHidden()
+                }
+
+                if calendarWriter.writeEnabled {
+                    Divider()
+
+                    HStack {
+                        Text("Calendar name")
+                            .foregroundStyle(Theme.textPrimary)
+                        Spacer()
+                        TextField("", text: $editingCalendarName)
+                            .textFieldStyle(.plain)
+                            .frame(width: 140)
+                            .padding(6)
+                            .background(Theme.backgroundSecondary)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .onSubmit {
+                                if !editingCalendarName.isEmpty {
+                                    calendarWriter.renameCalendar(to: editingCalendarName)
+                                }
+                            }
+                    }
+
+                    Divider()
+
+                    HStack {
+                        Text("Account")
+                            .foregroundStyle(Theme.textPrimary)
+                        Spacer()
+                        Picker("", selection: Binding(
+                            get: { calendarWriter.currentSourceTitle },
+                            set: { newTitle in
+                                calendarWriter.switchSource(to: newTitle)
+                            }
+                        )) {
+                            ForEach(calendarWriter.availableSources, id: \.sourceIdentifier) { source in
+                                Text(source.title).tag(source.title)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 160)
                     }
                 }
             }
-            .padding(4)
+        }
+        .onAppear {
+            editingCalendarName = calendarWriter.calendarName
+        }
+
+        settingsCard("Time Rounding") {
+            HStack {
+                Text("Round time blocks to")
+                    .foregroundStyle(Theme.textPrimary)
+                Spacer()
+                Picker("", selection: Binding(
+                    get: { calendarWriter.timeRounding },
+                    set: { calendarWriter.timeRounding = $0 }
+                )) {
+                    Text("None").tag(0)
+                    Text("5 min").tag(5)
+                    Text("10 min").tag(10)
+                    Text("15 min").tag(15)
+                    Text("30 min").tag(30)
+                }
+                .labelsHidden()
+                .frame(width: 100)
+            }
+        }
+
+        if calendarWriter.isAuthorized {
+            settingsCard("Status") {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 8, height: 8)
+                    Text("Calendar access granted")
+                        .foregroundStyle(Theme.textPrimary)
+                }
+            }
+        } else {
+            settingsCard("Status") {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(CategoryColors.accent)
+                        .frame(width: 8, height: 8)
+                    Text("Calendar access not granted")
+                        .foregroundStyle(Theme.textPrimary)
+                }
+            }
         }
     }
 
@@ -158,23 +362,40 @@ struct SettingsTabView: View {
     @ViewBuilder
     private var categorySection: some View {
         Text("Categories")
-            .font(.title2.weight(.semibold))
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(Theme.textPrimary)
 
         HSplitView {
             // Category list
-            VStack(alignment: .leading, spacing: 0) {
-                List(selection: $selectedCategory) {
-                    ForEach(sortedCategories, id: \.0) { name, _ in
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(CategoryColors.color(for: name))
-                                .frame(width: 8, height: 8)
-                            Text(name)
+            VStack(alignment: .leading, spacing: 2) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(sortedCategories, id: \.0) { name, _ in
+                            Button(action: { selectedCategory = name }) {
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(CategoryColors.color(for: name))
+                                        .frame(width: 8, height: 8)
+                                    Text(name)
+                                        .font(.system(size: 13))
+                                }
+                                .foregroundStyle(selectedCategory == name ? .white : Theme.textPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 7)
+                                .contentShape(Rectangle())
+                                .background(
+                                    selectedCategory == name
+                                        ? AnyShapeStyle(CategoryColors.accent)
+                                        : AnyShapeStyle(.clear),
+                                    in: RoundedRectangle(cornerRadius: 6)
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .tag(name)
                     }
+                    .padding(6)
                 }
-                .listStyle(.sidebar)
 
                 Divider()
 
@@ -194,6 +415,7 @@ struct SettingsTabView: View {
                 .padding(8)
             }
             .frame(minWidth: 140, maxWidth: 180)
+            .background(Theme.backgroundSecondary)
 
             // Category detail
             if let name = selectedCategory, let rule = config.categories[name] {
@@ -202,65 +424,53 @@ struct SettingsTabView: View {
                         Text(name)
                             .font(.headline)
 
-                        GroupBox("Primary Apps") {
-                            VStack(alignment: .leading, spacing: 4) {
-                                ForEach(rule.apps, id: \.self) { app in
-                                    HStack {
-                                        Text(app)
-                                            .font(.system(.body, design: .monospaced))
-                                        Spacer()
-                                        Button(action: { removeApp(app, from: name) }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        .buttonStyle(.plain)
+                        settingsCard("Primary Apps") {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ForEach(rule.apps, id: \.self) { bundleId in
+                                    appRow(bundleId: bundleId) {
+                                        removeApp(bundleId, from: name)
                                     }
                                 }
-                                HStack(spacing: 4) {
-                                    TextField("Bundle ID", text: $newAppBundleId)
-                                        .textFieldStyle(.roundedBorder)
-                                        .onSubmit { addApp(to: name) }
-                                    Button("Add") { addApp(to: name) }
-                                        .disabled(newAppBundleId.isEmpty)
+                                Button(action: { pickApp { bundleId in addApp(to: name, bundleId: bundleId) } }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "plus.circle")
+                                        Text("Add app")
+                                    }
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(CategoryColors.accent)
                                 }
+                                .buttonStyle(.plain)
                                 .padding(.top, 4)
                             }
-                            .padding(4)
                         }
 
-                        GroupBox("Related Apps") {
-                            VStack(alignment: .leading, spacing: 4) {
+                        settingsCard("Related Apps") {
+                            VStack(alignment: .leading, spacing: 6) {
                                 if let related = rule.related, !related.isEmpty {
-                                    ForEach(related, id: \.self) { app in
-                                        HStack {
-                                            Text(app)
-                                                .font(.system(.body, design: .monospaced))
-                                            Spacer()
-                                            Button(action: { removeRelated(app, from: name) }) {
-                                                Image(systemName: "xmark.circle.fill")
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                            .buttonStyle(.plain)
+                                    ForEach(related, id: \.self) { bundleId in
+                                        appRow(bundleId: bundleId) {
+                                            removeRelated(bundleId, from: name)
                                         }
                                     }
                                 } else {
                                     Text("None")
                                         .font(.caption)
-                                        .foregroundStyle(.tertiary)
+                                        .foregroundStyle(Theme.textTertiary)
                                 }
-                                HStack(spacing: 4) {
-                                    TextField("Bundle ID", text: $newRelatedBundleId)
-                                        .textFieldStyle(.roundedBorder)
-                                        .onSubmit { addRelated(to: name) }
-                                    Button("Add") { addRelated(to: name) }
-                                        .disabled(newRelatedBundleId.isEmpty)
+                                Button(action: { pickApp { bundleId in addRelated(to: name, bundleId: bundleId) } }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "plus.circle")
+                                        Text("Add app")
+                                    }
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(CategoryColors.accent)
                                 }
+                                .buttonStyle(.plain)
                                 .padding(.top, 4)
                             }
-                            .padding(4)
                         }
 
-                        GroupBox("URL Patterns") {
+                        settingsCard("URL Patterns") {
                             VStack(alignment: .leading, spacing: 4) {
                                 if let patterns = rule.urlPatterns, !patterns.isEmpty {
                                     ForEach(patterns, id: \.self) { pattern in
@@ -270,7 +480,7 @@ struct SettingsTabView: View {
                                             Spacer()
                                             Button(action: { removeUrlPattern(pattern, from: name) }) {
                                                 Image(systemName: "xmark.circle.fill")
-                                                    .foregroundStyle(.secondary)
+                                                    .foregroundStyle(Theme.textTertiary)
                                             }
                                             .buttonStyle(.plain)
                                         }
@@ -278,7 +488,7 @@ struct SettingsTabView: View {
                                 } else {
                                     Text("None")
                                         .font(.caption)
-                                        .foregroundStyle(.tertiary)
+                                        .foregroundStyle(Theme.textTertiary)
                                 }
                                 HStack(spacing: 4) {
                                     TextField("URL pattern", text: $newUrlPattern)
@@ -289,7 +499,6 @@ struct SettingsTabView: View {
                                 }
                                 .padding(.top, 4)
                             }
-                            .padding(4)
                         }
                     }
                     .padding(12)
@@ -298,13 +507,13 @@ struct SettingsTabView: View {
                 VStack {
                     Spacer()
                     Text("Select a category")
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.textTertiary)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity)
             }
         }
-        .frame(minHeight: 300)
+        .frame(minHeight: 400, maxHeight: .infinity)
     }
 
     // MARK: - Window
@@ -312,9 +521,10 @@ struct SettingsTabView: View {
     @ViewBuilder
     private var windowSection: some View {
         Text("Window")
-            .font(.title2.weight(.semibold))
+            .font(.system(size: 20, weight: .semibold))
+            .foregroundStyle(Theme.textPrimary)
 
-        GroupBox("Startup") {
+        settingsCard("Startup") {
             Toggle("Launch at login", isOn: Binding(
                 get: { SMAppService.mainApp.status == .enabled },
                 set: { newValue in
@@ -329,7 +539,8 @@ struct SettingsTabView: View {
                     }
                 }
             ))
-            .padding(4)
+            .toggleStyle(.switch)
+            .tint(CategoryColors.accent)
         }
     }
 
@@ -344,6 +555,59 @@ struct SettingsTabView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - App Row
+
+    @ViewBuilder
+    private func appRow(bundleId: String, onRemove: @escaping () -> Void) -> some View {
+        HStack(spacing: 8) {
+            Image(nsImage: AppIconCache.shared.icon(forBundleId: bundleId))
+                .resizable()
+                .frame(width: 22, height: 22)
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+
+            Text(AppIconCache.shared.displayName(forBundleId: bundleId) ?? bundleId)
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.textPrimary)
+
+            Spacer()
+
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(Theme.textTertiary)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var installedAppOptions: [(name: String, bundleId: String)] {
+        NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil }
+            .compactMap { app in
+                guard let bundleId = app.bundleIdentifier,
+                      let name = app.localizedName else { return nil }
+                return (name: name, bundleId: bundleId)
+            }
+            .sorted { $0.name < $1.name }
+    }
+
+    // MARK: - App Picker
+
+    private func pickApp(completion: @escaping (String) -> Void) {
+        let panel = NSOpenPanel()
+        panel.title = "Choose an Application"
+        panel.allowedContentTypes = [.application]
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.begin { response in
+            guard response == .OK, let url = panel.url,
+                  let bundle = Bundle(url: url),
+                  let bundleId = bundle.bundleIdentifier else { return }
+            MainActor.assumeIsolated {
+                completion(bundleId)
+            }
+        }
     }
 
     // MARK: - Actions
@@ -369,6 +633,12 @@ struct SettingsTabView: View {
         newAppBundleId = ""
     }
 
+    private func addApp(to category: String, bundleId: String) {
+        guard !bundleId.isEmpty,
+              !(config.categories[category]?.apps.contains(bundleId) ?? false) else { return }
+        config.categories[category]?.apps.append(bundleId)
+    }
+
     private func removeApp(_ app: String, from category: String) {
         config.categories[category]?.apps.removeAll { $0 == app }
     }
@@ -381,6 +651,16 @@ struct SettingsTabView: View {
         }
         config.categories[category]?.related?.append(bundleId)
         newRelatedBundleId = ""
+    }
+
+    private func addRelated(to category: String, bundleId: String) {
+        guard !bundleId.isEmpty else { return }
+        if config.categories[category]?.related == nil {
+            config.categories[category]?.related = []
+        }
+        if !(config.categories[category]?.related?.contains(bundleId) ?? false) {
+            config.categories[category]?.related?.append(bundleId)
+        }
     }
 
     private func removeRelated(_ app: String, from category: String) {

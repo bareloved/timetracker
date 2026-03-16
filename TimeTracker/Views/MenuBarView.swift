@@ -9,10 +9,9 @@ struct MenuBarView: View {
     let isTracking: Bool
     let onStartTracking: (String?) -> Void
     let onStopTracking: () -> Void
-    let onOpenSettings: () -> Void
-    let onOpenWindow: () -> Void
     let onQuit: () -> Void
 
+    @Environment(\.openWindow) private var openWindow
     @State private var accessibilityDismissed = false
 
     var body: some View {
@@ -105,30 +104,28 @@ struct MenuBarView: View {
 
             // Bottom controls
             Divider()
-            HStack {
+            HStack(spacing: 16) {
                 if isTracking {
                     Button(action: onStopTracking) {
                         Image(systemName: "stop.fill")
-                            .font(.system(size: 13))
+                            .font(.system(size: 16))
                     }
                     .buttonStyle(.plain)
                 } else {
                     Button(action: { onStartTracking(nil) }) {
                         Image(systemName: "play.fill")
-                            .font(.system(size: 13))
+                            .font(.system(size: 16))
                     }
                     .buttonStyle(.plain)
                 }
 
-                Button(action: onOpenWindow) {
+                Button(action: {
+                    openWindow(id: "main")
+                    NSApp.setActivationPolicy(.regular)
+                    NSApp.activate(ignoringOtherApps: true)
+                }) {
                     Image(systemName: "macwindow")
-                        .font(.system(size: 13))
-                }
-                .buttonStyle(.plain)
-
-                Button(action: onOpenSettings) {
-                    Image(systemName: "gear")
-                        .font(.system(size: 13))
+                        .font(.system(size: 16))
                 }
                 .buttonStyle(.plain)
 
@@ -138,13 +135,12 @@ struct MenuBarView: View {
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.textTertiary)
 
-                Divider()
-                    .frame(height: 12)
-
-                Button("Quit", action: onQuit)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .buttonStyle(.plain)
+                Button(action: onQuit) {
+                    Image(systemName: "xmark.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)

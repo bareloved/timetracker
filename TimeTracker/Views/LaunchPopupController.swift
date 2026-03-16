@@ -25,7 +25,7 @@ final class LaunchPopupController {
         )
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.title = "TimeTracker"
+        panel.title = "Loom"
         panel.contentView = NSHostingView(rootView: view)
         panel.center()
         panel.makeKeyAndOrderFront(nil)

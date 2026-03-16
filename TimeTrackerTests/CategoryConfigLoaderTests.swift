@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import TimeTracker
+@testable import Loom
 
 @Suite("Category Config Loader")
 struct CategoryConfigLoaderTests {

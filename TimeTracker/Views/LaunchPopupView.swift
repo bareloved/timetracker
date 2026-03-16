@@ -7,16 +7,17 @@ struct LaunchPopupView: View {
     @State private var intention = ""
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             SunriseAnimation()
+                .padding(.top, 4)
 
             Text("Ready to focus?")
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(Theme.textPrimary)
 
             Text("What are you working on?")
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.textSecondary)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.textTertiary)
 
             TextField("Intention (optional)", text: $intention)
                 .textFieldStyle(.roundedBorder)
@@ -24,24 +25,26 @@ struct LaunchPopupView: View {
 
             Button(action: startSession) {
                 Text("START SESSION")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
+                    .tracking(0.5)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 12)
                     .background(CategoryColors.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)
 
             Button("Not now") {
                 onDismiss()
             }
-            .font(.system(size: 12))
+            .font(.system(size: 11))
             .foregroundStyle(Theme.textTertiary)
             .buttonStyle(.plain)
         }
-        .padding(24)
+        .padding(28)
         .frame(width: 300)
+        .background(Theme.background)
     }
 
     private func startSession() {
