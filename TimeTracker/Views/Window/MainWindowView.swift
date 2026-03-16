@@ -40,17 +40,27 @@ struct MainWindowView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 case .calendar:
-                    Text("Calendar")
-                        .foregroundStyle(Theme.textTertiary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let engine = appState.sessionEngine {
+                        CalendarTabView(
+                            sessionEngine: engine,
+                            calendarReader: appState.calendarReader,
+                            calendarWriter: appState.calendarWriter,
+                            categories: Array((try? CategoryConfigLoader.loadOrCreateDefault())?.categories.keys.sorted() ?? [])
+                        )
+                    }
                 case .stats:
-                    Text("Stats")
-                        .foregroundStyle(Theme.textTertiary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let engine = appState.sessionEngine {
+                        StatsTabView(
+                            sessionEngine: engine,
+                            calendarReader: appState.calendarReader
+                        )
+                    }
                 case .settings:
-                    Text("Settings")
-                        .foregroundStyle(Theme.textTertiary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let currentConfig = try? CategoryConfigLoader.loadOrCreateDefault() {
+                        SettingsTabView(config: currentConfig) { newConfig in
+                            appState.saveConfig(newConfig)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

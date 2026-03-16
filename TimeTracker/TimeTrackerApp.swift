@@ -12,6 +12,7 @@ final class AppState {
     var accessibilityGranted = false
     var hotkeyManager = HotkeyManager()
     var idleReturnController = IdleReturnPanelController()
+    var launchPopupController = LaunchPopupController()
     @ObservationIgnored @AppStorage("showMenuBarText") var showMenuBarText = true
     @ObservationIgnored @AppStorage("goalCategory") var goalCategory = "Coding"
     @ObservationIgnored @AppStorage("goalHours") var goalHours = 0.0
@@ -72,6 +73,15 @@ final class AppState {
 
         setupSleepWakeHandlers(engine: engine)
         setupTerminationHandler(engine: engine)
+        setupWindowObservers()
+
+        // Show launch popup
+        launchPopupController.show(
+            onStart: { [weak self] intention in
+                self?.startTracking(intention: intention)
+            },
+            onDismiss: { }
+        )
 
         isReady = true
     }
@@ -229,6 +239,21 @@ final class AppState {
 
     // appearanceScheme moved to TimeTrackerApp struct
 
+    func setupWindowObservers() {
+        NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { notification in
+            guard let window = notification.object as? NSWindow, window.title == "TimeTracker" else { return }
+            MainActor.assumeIsolated { _ = NSApp.setActivationPolicy(.regular) }
+        }
+        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    let hasMainWindow = NSApp.windows.contains { $0.isVisible && $0.title == "TimeTracker" }
+                    if !hasMainWindow { NSApp.setActivationPolicy(.accessory) }
+                }
+            }
+        }
+    }
+
     private func startMenuBarTimer() {
         updateMenuBarTitle()
         accessibilityGranted = AXIsProcessTrusted()
@@ -245,11 +270,15 @@ final class AppState {
             menuBarTitle = "⏱"
             return
         }
+        guard let engine = sessionEngine, engine.isTracking else {
+            menuBarTitle = "⏱"
+            return
+        }
         if activityMonitor.isPaused {
             menuBarTitle = "⏸ Paused"
             return
         }
-        guard let session = sessionEngine?.currentSession else {
+        guard let session = engine.currentSession else {
             menuBarTitle = "⏱"
             return
         }
