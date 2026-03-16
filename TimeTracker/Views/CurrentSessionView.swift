@@ -18,14 +18,24 @@ struct CurrentSessionView: View {
             // Category + app icons
             HStack(spacing: 6) {
                 Circle()
-                    .fill(Color(hex: 0x5a9a6e))
+                    .fill(CategoryColors.color(for: session.category))
                     .frame(width: 7, height: 7)
 
                 Text(session.category)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Theme.textSecondary)
 
-                Text("·")
+                if let intention = session.intention {
+                    Text("\u{00b7}")
+                        .foregroundStyle(Theme.textTertiary)
+
+                    Text("\"\(intention)\"")
+                        .font(.system(size: 12).italic())
+                        .foregroundStyle(Theme.textTertiary)
+                        .lineLimit(1)
+                }
+
+                Text("\u{00b7}")
                     .foregroundStyle(Theme.textTertiary)
 
                 // App icons

@@ -6,8 +6,11 @@ struct MenuBarView: View {
     let accessibilityGranted: Bool
     let goalCategory: String
     let goalHours: Double
-    let onPauseResume: () -> Void
+    let isTracking: Bool
+    let onStartTracking: (String?) -> Void
+    let onStopTracking: () -> Void
     let onOpenSettings: () -> Void
+    let onOpenWindow: () -> Void
     let onQuit: () -> Void
 
     @State private var accessibilityDismissed = false
@@ -40,15 +43,34 @@ struct MenuBarView: View {
                     }
                 }
 
-                // Hero timer
+                // Hero timer / session status
                 if let session = sessionEngine.currentSession {
                     CurrentSessionView(session: session)
-                } else {
-                    Text(activityMonitor.isPaused ? "Paused" : "Waiting for activity...")
+                } else if isTracking {
+                    Text("Starting...")
                         .font(.system(size: 14))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
+                } else {
+                    VStack(spacing: 8) {
+                        Text("No active session")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.secondary)
+
+                        Button(action: { onStartTracking(nil) }) {
+                            Text("Start Session")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(CategoryColors.accent)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
                 }
 
                 // Focus goal
@@ -84,8 +106,22 @@ struct MenuBarView: View {
             // Bottom controls
             Divider()
             HStack {
-                Button(action: onPauseResume) {
-                    Image(systemName: activityMonitor.isPaused ? "play.fill" : "pause.fill")
+                if isTracking {
+                    Button(action: onStopTracking) {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 13))
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button(action: { onStartTracking(nil) }) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 13))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button(action: onOpenWindow) {
+                    Image(systemName: "macwindow")
                         .font(.system(size: 13))
                 }
                 .buttonStyle(.plain)
@@ -98,7 +134,7 @@ struct MenuBarView: View {
 
                 Spacer()
 
-                Text("⌥⇧T")
+                Text("\u{2325}\u{21e7}T")
                     .font(.system(size: 10))
                     .foregroundStyle(Theme.textTertiary)
 

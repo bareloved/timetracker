@@ -83,10 +83,16 @@ final class ActivityMonitor {
 
         let windowTitle = Self.windowTitle(for: frontApp)
 
+        var pageURL: String? = nil
+        if BrowserTracker.isBrowser(bundleId: bundleId) {
+            pageURL = BrowserTracker.activeTabURL(for: frontApp)
+        }
+
         let record = ActivityRecord(
             bundleId: bundleId,
             appName: appName,
             windowTitle: windowTitle,
+            pageURL: pageURL,
             timestamp: Date()
         )
         latestActivity = record

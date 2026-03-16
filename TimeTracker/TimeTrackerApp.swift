@@ -307,8 +307,11 @@ struct TimeTrackerApp: App {
                         accessibilityGranted: appState.accessibilityGranted,
                         goalCategory: appState.goalCategory,
                         goalHours: appState.goalHours,
-                        onPauseResume: appState.togglePause,
+                        isTracking: engine.isTracking,
+                        onStartTracking: { intention in appState.startTracking(intention: intention) },
+                        onStopTracking: { appState.stopTracking() },
                         onOpenSettings: appState.openSettings,
+                        onOpenWindow: { appState.openMainWindow() },
                         onQuit: appState.quit
                     )
                 } else {
