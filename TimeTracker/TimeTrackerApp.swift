@@ -1,6 +1,58 @@
 import SwiftUI
 import ServiceManagement
 
+struct MenuBarIconGroup: Identifiable {
+    let name: String
+    let icons: [MenuBarIcon]
+    var id: String { name }
+}
+
+struct MenuBarIcon: Identifiable, Equatable {
+    let label: String
+    let idleIcon: String
+    let activeIcon: String
+    var id: String { label }
+
+    static let allGroups: [MenuBarIconGroup] = [
+        MenuBarIconGroup(name: "Time", icons: [
+            MenuBarIcon(label: "Clock", idleIcon: "clock", activeIcon: "clock.fill"),
+            MenuBarIcon(label: "Stopwatch", idleIcon: "stopwatch", activeIcon: "stopwatch.fill"),
+            MenuBarIcon(label: "Timer", idleIcon: "timer", activeIcon: "timer.circle.fill"),
+            MenuBarIcon(label: "Hourglass", idleIcon: "hourglass", activeIcon: "hourglass.bottomhalf.filled"),
+        ]),
+        MenuBarIconGroup(name: "Nature", icons: [
+            MenuBarIcon(label: "Sunrise", idleIcon: "sunrise", activeIcon: "sunrise.fill"),
+            MenuBarIcon(label: "Sun & Moon", idleIcon: "moon", activeIcon: "sun.max.fill"),
+            MenuBarIcon(label: "Flame", idleIcon: "flame", activeIcon: "flame.fill"),
+            MenuBarIcon(label: "Leaf", idleIcon: "leaf", activeIcon: "leaf.fill"),
+            MenuBarIcon(label: "Drop", idleIcon: "drop", activeIcon: "drop.fill"),
+        ]),
+        MenuBarIconGroup(name: "Activity", icons: [
+            MenuBarIcon(label: "Bolt", idleIcon: "bolt", activeIcon: "bolt.fill"),
+            MenuBarIcon(label: "Circle", idleIcon: "circle", activeIcon: "circle.fill"),
+            MenuBarIcon(label: "Target", idleIcon: "scope", activeIcon: "target"),
+            MenuBarIcon(label: "Waveform", idleIcon: "waveform.path", activeIcon: "waveform.path.ecg.rectangle.fill"),
+        ]),
+        MenuBarIconGroup(name: "Focus", icons: [
+            MenuBarIcon(label: "Eye", idleIcon: "eye.slash", activeIcon: "eye.fill"),
+            MenuBarIcon(label: "Brain", idleIcon: "brain", activeIcon: "brain.fill"),
+            MenuBarIcon(label: "Lightbulb", idleIcon: "lightbulb", activeIcon: "lightbulb.fill"),
+        ]),
+        MenuBarIconGroup(name: "Other", icons: [
+            MenuBarIcon(label: "Star", idleIcon: "star", activeIcon: "star.fill"),
+            MenuBarIcon(label: "Heart", idleIcon: "heart", activeIcon: "heart.fill"),
+            MenuBarIcon(label: "Diamond", idleIcon: "diamond", activeIcon: "diamond.fill"),
+            MenuBarIcon(label: "Sparkle", idleIcon: "sparkle", activeIcon: "sparkles"),
+        ]),
+    ]
+
+    static let allIcons: [MenuBarIcon] = allGroups.flatMap(\.icons)
+
+    static func named(_ name: String) -> MenuBarIcon {
+        allIcons.first { $0.label == name } ?? allIcons[0]
+    }
+}
+
 @Observable
 @MainActor
 final class AppState {
@@ -16,8 +68,10 @@ final class AppState {
     @ObservationIgnored @AppStorage("showMenuBarText") var showMenuBarText = true
     @ObservationIgnored @AppStorage("goalCategory") var goalCategory = "Coding"
     @ObservationIgnored @AppStorage("goalHours") var goalHours = 0.0
-    // appearance is read via @AppStorage in TimeTrackerApp struct directly
-    var menuBarTitle: String = "⏱"
+    @ObservationIgnored @AppStorage("menuBarIcon") private var _storedMenuBarIcon = "Clock"
+    var menuBarIconName: String = UserDefaults.standard.string(forKey: "menuBarIcon") ?? "Clock"
+    var menuBarTitle: String = ""
+    var menuBarIconSystemName: String = "clock"
     private var menuBarTimer: Timer?
 
     func setup() async {
@@ -37,7 +91,7 @@ final class AppState {
             return
         }
 
-        accessibilityGranted = AXIsProcessTrusted()
+        accessibilityGranted = Self.testAccessibility()
 
         let engine = SessionEngine(config: config, calendarWriter: calendarWriter)
         self.sessionEngine = engine
@@ -260,36 +314,67 @@ final class AppState {
 
     private func startMenuBarTimer() {
         updateMenuBarTitle()
-        accessibilityGranted = AXIsProcessTrusted()
+        accessibilityGranted = Self.testAccessibility()
         menuBarTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.updateMenuBarTitle()
-                self?.accessibilityGranted = AXIsProcessTrusted()
+                self?.accessibilityGranted = Self.testAccessibility()
             }
         }
     }
 
+    /// Test accessibility by actually trying an AX call instead of relying on the
+    /// cached result from AXIsProcessTrusted(). This detects permission changes
+    /// without requiring an app relaunch.
+    private static func testAccessibility() -> Bool {
+        // First quick check
+        if AXIsProcessTrusted() { return true }
+        // AXIsProcessTrusted can be stale; try an actual AX call as fallback
+        guard let frontApp = NSWorkspace.shared.frontmostApplication else { return false }
+        let element = AXUIElementCreateApplication(frontApp.processIdentifier)
+        var value: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(element, kAXFocusedWindowAttribute as CFString, &value)
+        // If we get success or "no value" (app has no window), we have access.
+        // Only .cannotComplete or .notImplemented means no permission.
+        return result == .success || result == .noValue || result == .attributeUnsupported
+    }
+
+    func setMenuBarIcon(_ icon: MenuBarIcon) {
+        _storedMenuBarIcon = icon.label
+        menuBarIconName = icon.label
+        let isActive = sessionEngine?.isTracking == true && !activityMonitor.isPaused
+        menuBarIconSystemName = isActive ? icon.activeIcon : icon.idleIcon
+    }
+
     private func updateMenuBarTitle() {
+        let icon = MenuBarIcon.named(menuBarIconName)
+        let isActive = sessionEngine?.isTracking == true && !activityMonitor.isPaused
+        menuBarIconSystemName = isActive ? icon.activeIcon : icon.idleIcon
+
         guard showMenuBarText else {
-            menuBarTitle = "⏱"
+            menuBarTitle = ""
+
             return
         }
         guard let engine = sessionEngine, engine.isTracking else {
-            menuBarTitle = "⏱"
+            menuBarTitle = ""
+
             return
         }
         if activityMonitor.isPaused {
-            menuBarTitle = "⏸ Paused"
+            menuBarTitle = "Paused"
+
             return
         }
         guard let session = engine.currentSession else {
-            menuBarTitle = "⏱"
+            menuBarTitle = ""
+
             return
         }
         let duration = Date().timeIntervalSince(session.startTime)
         let hours = Int(duration) / 3600
         let minutes = (Int(duration) % 3600) / 60
-        menuBarTitle = "⏱ \(hours):\(String(format: "%02d", minutes)) \(session.category)"
+        menuBarTitle = "\(hours):\(String(format: "%02d", minutes)) \(session.category)"
     }
 
     private func createIdleEvent(label: String, duration: TimeInterval) {
@@ -379,7 +464,12 @@ struct TimeTrackerApp: App {
                 setAppIcon()
             }
         } label: {
-            Text(appState.menuBarTitle)
+            HStack(spacing: 7) {
+                Image(systemName: appState.menuBarIconSystemName)
+                if !appState.menuBarTitle.isEmpty {
+                    Text("  \(appState.menuBarTitle)")
+                }
+            }
         }
         .menuBarExtraStyle(.window)
 
