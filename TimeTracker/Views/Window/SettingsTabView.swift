@@ -34,6 +34,7 @@ struct SettingsTabView: View {
     @State private var newUrlPattern = ""
     @State private var showingSaveConfirmation = false
     @State private var editingCalendarName = ""
+    @State private var showingIconPicker = false
 
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("showMenuBarText") private var showMenuBarText = true
@@ -41,11 +42,13 @@ struct SettingsTabView: View {
     @AppStorage("goalHours") private var goalHours = 0.0
 
     let calendarWriter: CalendarWriter
+    let appState: AppState
     let onSave: (CategoryConfig) -> Void
 
-    init(config: CategoryConfig, calendarWriter: CalendarWriter, onSave: @escaping (CategoryConfig) -> Void) {
+    init(config: CategoryConfig, calendarWriter: CalendarWriter, appState: AppState, onSave: @escaping (CategoryConfig) -> Void) {
         self._config = State(initialValue: config)
         self.calendarWriter = calendarWriter
+        self.appState = appState
         self.onSave = onSave
     }
 
@@ -205,14 +208,92 @@ struct SettingsTabView: View {
         }
 
         settingsCard("Menu Bar") {
-            HStack {
-                Text("Show timer in menu bar")
-                    .foregroundStyle(Theme.textPrimary)
-                Spacer()
-                Toggle("", isOn: $showMenuBarText)
-                    .toggleStyle(.switch)
-                    .tint(CategoryColors.accent)
-                    .labelsHidden()
+            VStack(spacing: 10) {
+                HStack {
+                    Text("Show timer text")
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Toggle("", isOn: $showMenuBarText)
+                        .toggleStyle(.switch)
+                        .tint(CategoryColors.accent)
+                        .labelsHidden()
+                }
+
+                Divider()
+
+                HStack {
+                    Text("Icon")
+                        .foregroundStyle(Theme.textPrimary)
+                    Spacer()
+                    Button {
+                        showingIconPicker.toggle()
+                    } label: {
+                        let selected = MenuBarIcon.named(appState.menuBarIconName)
+                        HStack(spacing: 7) {
+                            Image(systemName: selected.activeIcon)
+                                .font(.system(size: 15))
+                            Text(selected.label)
+                                .font(.system(size: 14))
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 10))
+                                .foregroundStyle(Theme.textTertiary)
+                        }
+                        .foregroundStyle(Theme.textPrimary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Theme.backgroundSecondary, in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Theme.border, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showingIconPicker, arrowEdge: .bottom) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(MenuBarIcon.allGroups) { group in
+                                    Text(group.name.uppercased())
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(Theme.textTertiary)
+                                        .padding(.horizontal, 12)
+                                        .padding(.top, group.id == MenuBarIcon.allGroups.first?.id ? 4 : 10)
+                                        .padding(.bottom, 2)
+
+                                    ForEach(group.icons) { icon in
+                                        Button {
+                                            appState.setMenuBarIcon(icon)
+                                            showingIconPicker = false
+                                        } label: {
+                                            HStack(spacing: 10) {
+                                                Image(systemName: icon.activeIcon)
+                                                    .font(.system(size: 16))
+                                                    .frame(width: 24)
+                                                Text(icon.label)
+                                                    .font(.system(size: 14))
+                                                Spacer()
+                                                if appState.menuBarIconName == icon.label {
+                                                    Image(systemName: "checkmark")
+                                                        .font(.system(size: 13, weight: .semibold))
+                                                        .foregroundStyle(CategoryColors.accent)
+                                                }
+                                            }
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .background(
+                                            appState.menuBarIconName == icon.label
+                                                ? CategoryColors.accent.opacity(0.1)
+                                                : Color.clear,
+                                            in: RoundedRectangle(cornerRadius: 5)
+                                        )
+                                        .padding(.horizontal, 4)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 8)
+                        }
+                        .frame(width: 200, height: 380)
+                    }
+                }
             }
         }
 

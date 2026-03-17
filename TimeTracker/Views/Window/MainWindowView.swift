@@ -59,7 +59,7 @@ struct MainWindowView: View {
                     }
                 case .settings:
                     if let currentConfig = try? CategoryConfigLoader.loadOrCreateDefault() {
-                        SettingsTabView(config: currentConfig, calendarWriter: appState.calendarWriter) { newConfig in
+                        SettingsTabView(config: currentConfig, calendarWriter: appState.calendarWriter, appState: appState) { newConfig in
                             appState.saveConfig(newConfig)
                         }
                     }
