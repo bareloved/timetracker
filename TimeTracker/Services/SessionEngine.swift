@@ -31,6 +31,17 @@ final class SessionEngine {
         currentIntention = intention
     }
 
+    func updateIntention(_ intention: String?) {
+        let trimmed = intention?.trimmingCharacters(in: .whitespaces)
+        let value = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        currentIntention = value
+        if var session = currentSession {
+            session.intention = value
+            currentSession = session
+            calendarWriter?.updateCurrentEvent(session: session)
+        }
+    }
+
     func stopSession() {
         finalizeCurrentSession()
         calendarWriter?.resetTracking()
