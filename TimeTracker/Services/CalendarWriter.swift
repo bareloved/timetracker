@@ -129,23 +129,35 @@ final class CalendarWriter {
         }
     }
 
-    // MARK: - Notes Builder
+    // MARK: - Title & Notes Builders
 
-    private static func buildNotes(session: Session) -> String {
-        var dict: [String: Any] = [
-            "apps": session.appsUsed
-        ]
-        if let intention = session.intention {
-            dict["intention"] = intention
+    static func buildTitle(session: Session) -> String {
+        if let intention = session.intention, !intention.isEmpty {
+            return "\(session.category) — \(intention)"
         }
-        if let spanId = session.trackingSpanId {
-            dict["spanId"] = spanId.uuidString
+        return session.category
+    }
+
+    static func buildHumanNotes(session: Session, interruptions: [Interruption] = []) -> String {
+        var lines: [String] = []
+        if let intention = session.intention, !intention.isEmpty {
+            lines.append(intention)
+            lines.append("")
         }
-        guard let data = try? JSONSerialization.data(withJSONObject: dict, options: [.sortedKeys]),
-              let json = String(data: data, encoding: .utf8) else {
-            return "Apps: \(session.appsUsed.joined(separator: ", "))"
+        lines.append("Apps: \(session.appsUsed.joined(separator: ", "))")
+        if !interruptions.isEmpty {
+            lines.append("")
+            lines.append("Interruptions:")
+            let formatter = DateFormatter()
+            formatter.dateFormat = "h:mm a"
+            for interruption in interruptions {
+                let time = formatter.string(from: interruption.start)
+                let app = interruption.app ?? interruption.category
+                let mins = Int(ceil(interruption.duration / 60))
+                lines.append("  \(time) — \(app) (\(mins) min)")
+            }
         }
-        return json
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Event Management
@@ -156,9 +168,9 @@ final class CalendarWriter {
         guard let calendar = timeTrackerCalendar else { return }
 
         let event = EKEvent(eventStore: eventStore)
-        event.title = session.category
+        event.title = Self.buildTitle(session: session)
         event.location = session.primaryApp
-        event.notes = Self.buildNotes(session: session)
+        event.notes = Self.buildHumanNotes(session: session)
         event.startDate = roundDown(session.startTime)
         event.endDate = roundUp(session.startTime.addingTimeInterval(300))
         event.calendar = calendar
@@ -176,8 +188,9 @@ final class CalendarWriter {
         guard let identifier = currentEventIdentifier,
               let event = eventStore.event(withIdentifier: identifier) else { return }
 
+        event.title = Self.buildTitle(session: session)
         event.endDate = Date()
-        event.notes = Self.buildNotes(session: session)
+        event.notes = Self.buildHumanNotes(session: session)
         event.location = session.primaryApp
 
         do {
@@ -196,8 +209,9 @@ final class CalendarWriter {
             return
         }
 
+        event.title = Self.buildTitle(session: session)
         event.endDate = roundUp(session.endTime ?? Date())
-        event.notes = Self.buildNotes(session: session)
+        event.notes = Self.buildHumanNotes(session: session)
         event.location = session.primaryApp
 
         do {
