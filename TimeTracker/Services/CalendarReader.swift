@@ -110,7 +110,8 @@ final class CalendarReader {
             endTime: event.endDate,
             appsUsed: apps,
             intention: intention,
-            trackingSpanId: spanId
+            trackingSpanId: spanId,
+            eventIdentifier: event.eventIdentifier
         )
     }
 

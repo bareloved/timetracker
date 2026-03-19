@@ -11,7 +11,10 @@ struct CalendarTabView: View {
     @State private var backgroundEvents: [CalendarEvent] = []
     @State private var showBackfill = false
     @State private var showCalendarFilter = false
+    @State private var visibleHourRange: ClosedRange<CGFloat> = 6...18
     @State private var hiddenCalendars: Set<String> = []
+    @State private var selectedSessionId: String?
+    @State private var editingSession: Session?
 
     private let calendar = Calendar.current
 
@@ -45,17 +48,6 @@ struct CalendarTabView: View {
         return totals
     }
 
-    private var overviewSegments: [(String, CGFloat)] {
-        let sessions = selectedDaySessions
-        let totalDuration = sessions.reduce(0.0) { $0 + $1.duration }
-        guard totalDuration > 0 else { return [] }
-        var categoryTotals: [String: TimeInterval] = [:]
-        for s in sessions {
-            categoryTotals[s.category, default: 0] += s.duration
-        }
-        return categoryTotals.sorted { $0.value > $1.value }
-            .map { ($0.key, CGFloat($0.value / totalDuration)) }
-    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -124,27 +116,26 @@ struct CalendarTabView: View {
                 )
                 .padding(.horizontal, 12)
 
-                // Overview bar
-                if !overviewSegments.isEmpty {
-                    GeometryReader { geo in
-                        HStack(spacing: 1) {
-                            ForEach(overviewSegments, id: \.0) { category, ratio in
-                                CategoryColors.color(for: category)
-                                    .frame(width: max(geo.size.width * ratio - 1, 2))
-                            }
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                    }
-                    .frame(height: 8)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                }
+                // Full-day timeline bar
+                DayTimelineBar(
+                    sessions: selectedDaySessions,
+                    date: selectedDate,
+                    isToday: calendar.isDateInToday(selectedDate),
+                    visibleHourRange: visibleHourRange
+                )
+                .padding(.horizontal, 40)
+                .padding(.vertical, 6)
 
                 // Timeline
                 VerticalTimelineView(
                     sessions: selectedDaySessions,
                     isToday: calendar.isDateInToday(selectedDate),
-                    backgroundEvents: backgroundEvents
+                    backgroundEvents: backgroundEvents,
+                    visibleHourRange: $visibleHourRange,
+                    selectedSessionId: $selectedSessionId,
+                    onSessionDoubleClick: { session in
+                        editingSession = session
+                    }
                 )
             }
 
@@ -170,6 +161,23 @@ struct CalendarTabView: View {
                     showBackfill = false
                 },
                 onCancel: { showBackfill = false }
+            )
+        }
+        .sheet(item: $editingSession) { session in
+            BackfillSheetView(
+                date: selectedDate,
+                categories: categories,
+                onAdd: { _, _, _, _ in },
+                onCancel: { editingSession = nil },
+                editingSession: session,
+                onSave: { updated in
+                    saveEditedSession(updated)
+                    editingSession = nil
+                },
+                onDelete: { session in
+                    deleteSession(session)
+                    editingSession = nil
+                }
             )
         }
         .onAppear { loadWeekSessions() }
@@ -204,5 +212,79 @@ struct CalendarTabView: View {
         )
         calendarWriter.createEventImmediately(for: session)
         loadWeekSessions()
+    }
+
+    private func saveEditedSession(_ session: Session) {
+        guard let eventId = session.eventIdentifier else { return }
+        calendarWriter.updateEvent(eventIdentifier: eventId, session: session)
+        loadWeekSessions()
+    }
+
+    private func deleteSession(_ session: Session) {
+        guard let eventId = session.eventIdentifier else { return }
+        calendarWriter.deleteEvent(eventIdentifier: eventId)
+        loadWeekSessions()
+    }
+}
+
+// MARK: - Full-day timeline bar
+
+private struct DayTimelineBar: View {
+    let sessions: [Session]
+    let date: Date
+    let isToday: Bool
+    var visibleHourRange: ClosedRange<CGFloat> = 6...18
+
+    private let cal = Calendar.current
+    private let totalHours: CGFloat = 24
+
+    var body: some View {
+        GeometryReader { geo in
+            let dayStart = cal.startOfDay(for: date)
+            let totalSeconds: CGFloat = totalHours * 3600
+
+            ZStack(alignment: .leading) {
+                // Track
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Theme.idleSegment)
+
+                // Viewport highlight
+                let startX = geo.size.width * (visibleHourRange.lowerBound / totalHours)
+                let endX = geo.size.width * (visibleHourRange.upperBound / totalHours)
+                let highlightWidth = max(endX - startX, 4)
+
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Theme.textTertiary.opacity(0.3))
+                    .frame(width: highlightWidth, height: geo.size.height)
+                    .offset(x: startX)
+
+                // Session segments
+                ForEach(sessions) { session in
+                    let startOffset = CGFloat(session.startTime.timeIntervalSince(dayStart))
+                    let end = session.endTime ?? Date()
+                    let duration = CGFloat(end.timeIntervalSince(session.startTime))
+
+                    let x = geo.size.width * (startOffset / totalSeconds)
+                    let w = max(geo.size.width * (duration / totalSeconds), 2)
+
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(CategoryColors.color(for: session.category))
+                        .frame(width: w, height: geo.size.height)
+                        .offset(x: x)
+                }
+
+                // Now marker
+                if isToday {
+                    let nowOffset = CGFloat(Date().timeIntervalSince(dayStart))
+                    let x = geo.size.width * (nowOffset / totalSeconds)
+
+                    Rectangle()
+                        .fill(Theme.textSecondary)
+                        .frame(width: 1, height: geo.size.height + 4)
+                        .offset(x: x, y: -2)
+                }
+            }
+        }
+        .frame(height: 8)
     }
 }

@@ -230,6 +230,40 @@ final class CalendarWriter {
         }
     }
 
+    // MARK: - Edit & Delete
+
+    func updateEvent(eventIdentifier: String, session: Session) {
+        guard let event = eventStore.event(withIdentifier: eventIdentifier) else {
+            print("Failed to find event for update: \(eventIdentifier)")
+            return
+        }
+
+        event.title = Self.buildTitle(session: session)
+        event.startDate = session.startTime
+        event.endDate = session.endTime ?? Date()
+        event.notes = Self.buildHumanNotes(session: session)
+        event.location = session.category
+
+        do {
+            try eventStore.save(event, span: .thisEvent)
+        } catch {
+            print("Failed to update event: \(error)")
+        }
+    }
+
+    func deleteEvent(eventIdentifier: String) {
+        guard let event = eventStore.event(withIdentifier: eventIdentifier) else {
+            print("Failed to find event for deletion: \(eventIdentifier)")
+            return
+        }
+
+        do {
+            try eventStore.remove(event, span: .thisEvent)
+        } catch {
+            print("Failed to delete event: \(error)")
+        }
+    }
+
     // MARK: - Weekly Stats
 
     func weeklyStats() async -> [String: TimeInterval] {

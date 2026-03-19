@@ -4,6 +4,9 @@ struct VerticalTimelineView: View {
     let sessions: [Session]
     let isToday: Bool
     var backgroundEvents: [CalendarEvent] = []
+    @Binding var visibleHourRange: ClosedRange<CGFloat>
+    var selectedSessionId: Binding<String?> = .constant(nil)
+    var onSessionDoubleClick: ((Session) -> Void)? = nil
 
     private let hourHeight: CGFloat = 60
     private let labelWidth: CGFloat = 40
@@ -11,24 +14,7 @@ struct VerticalTimelineView: View {
     @State private var currentTime = Date()
 
     private var displayHours: ClosedRange<Int> {
-        let cal = Calendar.current
-        var allStartHours = sessions.map { cal.component(.hour, from: $0.startTime) }
-        var allEndHours = sessions.compactMap { $0.endTime }.map { cal.component(.hour, from: $0) }
-        allStartHours += backgroundEvents.map { cal.component(.hour, from: $0.startDate) }
-        allEndHours += backgroundEvents.map { cal.component(.hour, from: $0.endDate) }
-
-        guard !allStartHours.isEmpty else {
-            let currentHour = cal.component(.hour, from: Date())
-            return (isToday ? max(currentHour - 1, 0) : 8)...((isToday ? currentHour + 1 : 18))
-        }
-        let firstHour = allStartHours.min() ?? 8
-        let lastHour: Int
-        if isToday {
-            lastHour = max(cal.component(.hour, from: currentTime), allEndHours.max() ?? 0)
-        } else {
-            lastHour = allEndHours.max() ?? 18
-        }
-        return firstHour...max(firstHour, min(lastHour + 1, 23))
+        0...23
     }
 
     private var dayStart: Date {
@@ -46,71 +32,44 @@ struct VerticalTimelineView: View {
     }
 
     var body: some View {
+        let totalHeight = CGFloat(displayHours.count) * hourHeight
+
         ScrollViewReader { proxy in
             ScrollView(.vertical) {
-                ZStack(alignment: .topLeading) {
-                    // Hour labels and grid lines
-                    ForEach(Array(displayHours), id: \.self) { hour in
-                        HStack(spacing: 0) {
-                            Text(String(format: "%d:00", hour))
-                                .font(.system(size: 10))
-                                .foregroundStyle(Theme.textTertiary)
-                                .frame(width: labelWidth, alignment: .trailing)
+                HStack(alignment: .top, spacing: 0) {
+                    // Left column: hour labels + calendar events
+                    leftColumn(totalHeight: totalHeight)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: totalHeight, alignment: .topLeading)
+                        .clipped()
 
-                            Rectangle()
-                                .fill(Theme.border)
-                                .frame(height: 0.5)
-                        }
-                        .offset(y: CGFloat(hour - displayHours.lowerBound) * hourHeight)
-                        .id(hour)
-                    }
+                    // Divider
+                    Rectangle()
+                        .fill(Theme.border)
+                        .frame(width: 0.5, height: totalHeight)
 
-                    // Background calendar events (faded, behind sessions)
-                    ForEach(backgroundEvents) { event in
-                        let top = yOffset(for: event.startDate)
-                        let height = max(CGFloat(event.endDate.timeIntervalSince(event.startDate) / 3600) * hourHeight, 20)
-
-                        calendarEventBlock(event: event, height: height)
-                            .offset(x: labelWidth + 8, y: top)
-                    }
-
-                    // Session blocks
-                    ForEach(sessions) { session in
-                        let top = yOffset(for: session.startTime)
-                        let end = session.endTime ?? currentTime
-                        let height = max(CGFloat(end.timeIntervalSince(session.startTime) / 3600) * hourHeight, 20)
-
-                        sessionBlock(session: session, height: height)
-                            .offset(x: labelWidth + 8, y: top)
-                    }
-
-                    // Current time indicator
-                    if isToday {
-                        let y = yOffset(for: currentTime)
-                        HStack(spacing: 4) {
-                            Spacer().frame(width: labelWidth - 4)
-                            Text(timeFormatter.string(from: currentTime))
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(CategoryColors.accent)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(CategoryColors.accent.opacity(0.15))
-                                .clipShape(RoundedRectangle(cornerRadius: 3))
-
-                            Rectangle()
-                                .fill(CategoryColors.accent)
-                                .frame(height: 1.5)
-                        }
-                        .offset(y: y - 6)
-                    }
+                    // Right column: Loom sessions
+                    rightColumn(totalHeight: totalHeight)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: totalHeight, alignment: .topLeading)
+                        .clipped()
                 }
-                .frame(
-                    width: nil,
-                    height: CGFloat(displayHours.count) * hourHeight,
-                    alignment: .topLeading
+                .background(
+                    GeometryReader { contentGeo in
+                        let offset = contentGeo.frame(in: .named("timelineScroll")).origin.y
+                        Color.clear
+                            .onChange(of: offset) { updateVisibleRange(scrollOffset: offset, totalHeight: totalHeight) }
+                            .onAppear { updateVisibleRange(scrollOffset: offset, totalHeight: totalHeight) }
+                    }
                 )
-                .padding(.trailing, 16)
             }
+            .coordinateSpace(name: "timelineScroll")
+            .background(
+                GeometryReader { scrollGeo in
+                    Color.clear.onAppear { scrollViewHeight = scrollGeo.size.height }
+                        .onChange(of: scrollGeo.size.height) { scrollViewHeight = scrollGeo.size.height }
+                }
+            )
             .onAppear {
                 if isToday {
                     let currentHour = Calendar.current.component(.hour, from: currentTime)
@@ -124,8 +83,102 @@ struct VerticalTimelineView: View {
     }
 
     @ViewBuilder
+    private func leftColumn(totalHeight: CGFloat) -> some View {
+        GeometryReader { geo in
+            let eventWidth = geo.size.width - labelWidth - 8
+
+            ZStack(alignment: .topLeading) {
+                // Hour labels and grid lines
+                ForEach(Array(displayHours), id: \.self) { hour in
+                    HStack(spacing: 0) {
+                        Text(String(format: "%d:00", hour))
+                            .font(.system(size: 10))
+                            .foregroundStyle(Theme.textTertiary)
+                            .frame(width: labelWidth, alignment: .trailing)
+
+                        Rectangle()
+                            .fill(Theme.border)
+                            .frame(height: 0.5)
+                    }
+                    .offset(y: CGFloat(hour - displayHours.lowerBound) * hourHeight)
+                    .id(hour)
+                }
+
+                // Calendar events
+                ForEach(backgroundEvents) { event in
+                    let top = yOffset(for: event.startDate)
+                    let height = max(CGFloat(event.endDate.timeIntervalSince(event.startDate) / 3600) * hourHeight, 20)
+
+                    calendarEventBlock(event: event, height: height)
+                        .frame(width: eventWidth)
+                        .offset(x: labelWidth + 8, y: top)
+                }
+
+                // Current time indicator
+                if isToday {
+                    let y = yOffset(for: currentTime)
+                    HStack(spacing: 4) {
+                        Spacer().frame(width: labelWidth - 4)
+                        Text(timeFormatter.string(from: currentTime))
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(CategoryColors.accent)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(CategoryColors.accent.opacity(0.15))
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+
+                        Rectangle()
+                            .fill(CategoryColors.accent)
+                            .frame(height: 1.5)
+                    }
+                    .offset(y: y - 6)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func rightColumn(totalHeight: CGFloat) -> some View {
+        GeometryReader { geo in
+            let sessionWidth = geo.size.width - 16
+
+            ZStack(alignment: .topLeading) {
+                // Grid lines
+                ForEach(Array(displayHours), id: \.self) { hour in
+                    Rectangle()
+                        .fill(Theme.border)
+                        .frame(height: 0.5)
+                        .offset(y: CGFloat(hour - displayHours.lowerBound) * hourHeight)
+                }
+
+                // Session blocks
+                ForEach(sessions) { session in
+                    let top = yOffset(for: session.startTime)
+                    let end = session.endTime ?? currentTime
+                    let height = max(CGFloat(end.timeIntervalSince(session.startTime) / 3600) * hourHeight, 20)
+
+                    sessionBlock(session: session, height: height)
+                        .frame(width: sessionWidth)
+                        .offset(x: 8, y: top)
+                }
+
+                // Current time line
+                if isToday {
+                    let y = yOffset(for: currentTime)
+                    Rectangle()
+                        .fill(CategoryColors.accent)
+                        .frame(height: 1.5)
+                        .offset(y: y)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     private func sessionBlock(session: Session, height: CGFloat) -> some View {
         let color = CategoryColors.color(for: session.category)
+        let isSelected = selectedSessionId.wrappedValue == session.id.uuidString
+
         VStack(alignment: .leading, spacing: 2) {
             Text(session.category)
                 .font(.system(size: 11, weight: .semibold))
@@ -139,8 +192,20 @@ struct VerticalTimelineView: View {
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: height)
-        .background(color)
+        .background(color.opacity(isSelected ? 0.85 : 1.0))
         .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(.white.opacity(0.5), lineWidth: 2)
+            }
+        }
+        .onTapGesture(count: 2) {
+            onSessionDoubleClick?(session)
+        }
+        .onTapGesture(count: 1) {
+            selectedSessionId.wrappedValue = session.id.uuidString
+        }
     }
 
     @ViewBuilder
@@ -148,16 +213,16 @@ struct VerticalTimelineView: View {
         let color = Color(nsColor: event.color)
         Text(event.title)
             .font(.system(size: 11))
-            .foregroundStyle(Theme.textTertiary)
+            .foregroundStyle(Theme.textPrimary)
             .lineLimit(1)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: height)
-            .background(color.opacity(0.1))
+            .background(color.opacity(0.15))
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
-                    .stroke(color.opacity(0.2), lineWidth: 1)
+                    .stroke(color.opacity(0.3), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 6))
     }
@@ -172,5 +237,16 @@ struct VerticalTimelineView: View {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
         return f
+    }
+
+    @State private var scrollViewHeight: CGFloat = 400
+
+    private func updateVisibleRange(scrollOffset: CGFloat, totalHeight: CGFloat) {
+        let startHour = CGFloat(displayHours.lowerBound)
+        let scrolledPx = -scrollOffset
+        let visibleStart = startHour + scrolledPx / hourHeight
+        let visibleEnd = visibleStart + scrollViewHeight / hourHeight
+        let clamped = max(visibleStart, 0)...min(visibleEnd, 24)
+        visibleHourRange = clamped
     }
 }

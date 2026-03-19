@@ -32,7 +32,6 @@ struct SettingsTabView: View {
     @State private var newAppBundleId = ""
     @State private var newRelatedBundleId = ""
     @State private var newUrlPattern = ""
-    @State private var showingSaveConfirmation = false
     @State private var editingCalendarName = ""
     @State private var showingIconPicker = false
 
@@ -125,38 +124,10 @@ struct SettingsTabView: View {
                     }
                 }
 
-                // Bottom save bar
-                Rectangle()
-                    .fill(Theme.border)
-                    .frame(height: 1)
-                HStack {
-                    if showingSaveConfirmation {
-                        Text("Saved!")
-                            .foregroundStyle(.green)
-                            .font(.system(size: 12))
-                    }
-                    Spacer()
-                    Button(action: {
-                        onSave(config)
-                        showingSaveConfirmation = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            showingSaveConfirmation = false
-                        }
-                    }) {
-                        Text("Save")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 6)
-                            .background(CategoryColors.accent, in: RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut("s", modifiers: .command)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Theme.backgroundSecondary)
             }
+        }
+        .onChange(of: config) { _, newConfig in
+            onSave(newConfig)
         }
     }
 

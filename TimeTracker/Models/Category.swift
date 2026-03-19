@@ -1,12 +1,12 @@
 import Foundation
 
-struct CategoryRule: Codable {
+struct CategoryRule: Codable, Equatable {
     var apps: [String]
     var related: [String]?
     var urlPatterns: [String]?
 }
 
-struct CategoryConfig: Codable {
+struct CategoryConfig: Codable, Equatable {
     var categories: [String: CategoryRule]
     var defaultCategory: String
 
