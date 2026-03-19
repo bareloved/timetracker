@@ -108,6 +108,9 @@ final class AppState {
             guard_?.evaluate(record)
         }
         activityMonitor.onIdle = { [weak engine, weak guard_] in
+            if let distractions = guard_?.distractions, !distractions.isEmpty {
+                engine?.attachDistractions(distractions)
+            }
             engine?.handleIdle(at: Date())
             guard_?.reset()
         }
@@ -171,6 +174,9 @@ final class AppState {
     }
 
     func stopTracking() {
+        if let distractions = focusGuard?.distractions, !distractions.isEmpty {
+            sessionEngine?.attachDistractions(distractions)
+        }
         focusGuard?.reset()
         sessionEngine?.stopSession()
         activityMonitor.stop()

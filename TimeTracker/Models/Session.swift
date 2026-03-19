@@ -9,6 +9,7 @@ struct Session: Identifiable {
     var intention: String?
     var trackingSpanId: UUID?
     var eventIdentifier: String?
+    var distractions: [Distraction] = []
 
     init(
         id: UUID = UUID(),
@@ -18,7 +19,8 @@ struct Session: Identifiable {
         appsUsed: [String],
         intention: String? = nil,
         trackingSpanId: UUID? = nil,
-        eventIdentifier: String? = nil
+        eventIdentifier: String? = nil,
+        distractions: [Distraction] = []
     ) {
         self.id = id
         self.category = category
@@ -28,6 +30,7 @@ struct Session: Identifiable {
         self.intention = intention
         self.trackingSpanId = trackingSpanId
         self.eventIdentifier = eventIdentifier
+        self.distractions = distractions
     }
 
     var duration: TimeInterval {

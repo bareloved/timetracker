@@ -29,23 +29,6 @@ struct CurrentSessionView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Theme.textPrimary)
 
-                Text("\u{00b7}")
-                    .foregroundStyle(Theme.textTertiary)
-
-                // App icons
-                ForEach(session.appsUsed.prefix(3), id: \.self) { appName in
-                    if let bundleId = appBundleId(for: appName) {
-                        Image(nsImage: AppIconCache.shared.icon(forBundleId: bundleId))
-                            .resizable()
-                            .frame(width: 14, height: 14)
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                    }
-                }
-
-                Text(session.appsUsed.joined(separator: ", "))
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.textSecondary)
-                    .lineLimit(1)
             }
 
             // Intention field

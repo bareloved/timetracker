@@ -138,13 +138,30 @@ final class CalendarWriter {
     }
 
     static func buildHumanNotes(session: Session) -> String {
-        var lines: [String] = []
+        var parts: [String] = []
         if let intention = session.intention, !intention.isEmpty {
-            lines.append(intention)
-            lines.append("")
+            parts.append(intention)
         }
-        lines.append("Apps: \(session.appsUsed.joined(separator: ", "))")
-        return lines.joined(separator: "\n")
+        if !session.distractions.isEmpty {
+            // Group durations by app name
+            var durations: [String: TimeInterval] = [:]
+            var order: [String] = []
+            for d in session.distractions {
+                if durations[d.appName] == nil { order.append(d.appName) }
+                durations[d.appName, default: 0] += d.duration
+            }
+            let entries = order.map { name -> String in
+                let mins = Int(durations[name]! / 60)
+                let secs = Int(durations[name]!.truncatingRemainder(dividingBy: 60))
+                if mins > 0 {
+                    return "\(name) (\(mins)m \(secs)s)"
+                } else {
+                    return "\(name) (\(secs)s)"
+                }
+            }
+            parts.append("Distractions: \(entries.joined(separator: ", "))")
+        }
+        return parts.joined(separator: "\n")
     }
 
     // MARK: - Event Management
@@ -156,7 +173,7 @@ final class CalendarWriter {
 
         let event = EKEvent(eventStore: eventStore)
         event.title = Self.buildTitle(session: session)
-        event.location = session.primaryApp
+        event.location = nil
         event.notes = Self.buildHumanNotes(session: session)
         event.startDate = roundDown(session.startTime)
         event.endDate = roundUp(session.startTime.addingTimeInterval(300))
@@ -178,7 +195,7 @@ final class CalendarWriter {
         event.title = Self.buildTitle(session: session)
         event.endDate = Date()
         event.notes = Self.buildHumanNotes(session: session)
-        event.location = session.primaryApp
+        event.location = nil
 
         do {
             try eventStore.save(event, span: .thisEvent)
@@ -199,7 +216,7 @@ final class CalendarWriter {
         event.title = Self.buildTitle(session: session)
         event.endDate = roundUp(session.endTime ?? Date())
         event.notes = Self.buildHumanNotes(session: session)
-        event.location = session.primaryApp
+        event.location = nil
 
         do {
             try eventStore.save(event, span: .thisEvent)
@@ -217,7 +234,7 @@ final class CalendarWriter {
 
         let event = EKEvent(eventStore: eventStore)
         event.title = Self.buildTitle(session: session)
-        event.location = session.primaryApp
+        event.location = nil
         event.notes = Self.buildHumanNotes(session: session)
         event.startDate = roundDown(session.startTime)
         event.endDate = roundUp(session.endTime ?? Date())
@@ -242,7 +259,7 @@ final class CalendarWriter {
         event.startDate = session.startTime
         event.endDate = session.endTime ?? Date()
         event.notes = Self.buildHumanNotes(session: session)
-        event.location = session.category
+        event.location = nil
 
         do {
             try eventStore.save(event, span: .thisEvent)

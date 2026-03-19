@@ -18,9 +18,19 @@ final class LaunchPopupController {
             }
         )
 
+        let hostingView = NSHostingView(rootView:
+            view
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Theme.background)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        )
+        let intrinsicSize = hostingView.fittingSize
+
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 420),
-            styleMask: [.nonactivatingPanel, .borderless],
+            contentRect: NSRect(x: 0, y: 0, width: intrinsicSize.width, height: intrinsicSize.height),
+            styleMask: [.titled, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -30,15 +40,14 @@ final class LaunchPopupController {
         panel.backgroundColor = .clear
         panel.hasShadow = true
         panel.isMovableByWindowBackground = true
-        panel.contentView = NSHostingView(rootView:
-            view
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Theme.background)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        )
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
+        panel.contentView = hostingView
         panel.center()
+        NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         self.panel = panel
     }

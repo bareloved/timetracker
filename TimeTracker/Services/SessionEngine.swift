@@ -49,11 +49,23 @@ final class SessionEngine {
         }
     }
 
+    func updateCategory(_ category: String) {
+        if var session = currentSession {
+            session.category = category
+            currentSession = session
+            calendarWriter?.updateCurrentEvent(session: session)
+        }
+    }
+
     func process(_ record: ActivityRecord) {
         guard isTracking, var session = currentSession else { return }
         session.addApp(record.appName)
         currentSession = session
         calendarWriter?.updateCurrentEvent(session: session)
+    }
+
+    func attachDistractions(_ distractions: [Distraction]) {
+        currentSession?.distractions = distractions
     }
 
     func handleIdle(at time: Date) {

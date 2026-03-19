@@ -32,23 +32,31 @@ struct FocusPopupView: View {
             .multilineTextAlignment(.center)
 
             // Buttons
-            VStack(spacing: 8) {
-                Button(action: onDismiss) {
+            VStack(spacing: 4) {
+                Button {
+                    onDismiss()
+                } label: {
                     Text("Back to Work")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(CategoryColors.accent, in: RoundedRectangle(cornerRadius: 8))
+                        .padding(10)
+                        .background(CategoryColors.accent)
+                        .foregroundStyle(.white)
+                        .font(.system(size: 13, weight: .semibold))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
-                Button(action: onSnooze) {
+                Button {
+                    onSnooze()
+                } label: {
                     Text("Snooze (\(snoozeMinutes) min)")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.textTertiary)
+                        .padding(8)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.textTertiary)
             }
         }
         .padding(20)

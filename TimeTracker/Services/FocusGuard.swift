@@ -32,14 +32,28 @@ final class FocusGuard {
         self.categoryConfig = config
     }
 
+    // MARK: - Debug Logging
+
+    private func log(_ msg: String) {
+        let line = "\(Date()) \(msg)\n"
+        let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("focusguard.log")
+        if let data = line.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: url.path) {
+                if let h = try? FileHandle(forWritingTo: url) { h.seekToEndOfFile(); h.write(data); h.closeFile() }
+            } else { try? data.write(to: url) }
+        }
+    }
+
     // MARK: - Core Evaluation
 
     func evaluate(_ record: ActivityRecord) {
+        log("evaluate: \(record.appName) popup=\(isPopupShowing) offStart=\(offCategoryStart != nil)")
         guard isEnabled,
               let engine = sessionEngine,
               engine.isTracking,
               let session = engine.currentSession,
               let config = categoryConfig else {
+            NSLog("[FocusGuard] evaluate guard failed")
             return
         }
 
@@ -93,6 +107,7 @@ final class FocusGuard {
     }
 
     private func resetDrift() {
+        log(">>> resetDrift popup=\(isPopupShowing)")
         // Only update duration if a distraction was logged for this drift episode
         if distractionLoggedForCurrentDrift, let lastIndex = distractions.indices.last {
             distractions[lastIndex].duration = Date().timeIntervalSince(distractions[lastIndex].startTime)
@@ -123,6 +138,7 @@ final class FocusGuard {
     // MARK: - Popup
 
     private func showPopup(appName: String, elapsed: TimeInterval) {
+        log(">>> showPopup called")
         isPopupShowing = true
         let controller = FocusPopupController()
         let snoozeMinutes = Int(snoozeDuration / 60)
@@ -141,6 +157,7 @@ final class FocusGuard {
     }
 
     func dismissPopup() {
+        log(">>> dismissPopup called")
         popupController?.dismiss()
         popupController = nil
         isPopupShowing = false

@@ -1,6 +1,10 @@
 import SwiftUI
 import AppKit
 
+private class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 @MainActor
 final class FocusPopupController {
     private var panel: NSPanel?
@@ -17,25 +21,35 @@ final class FocusPopupController {
             elapsed: elapsed,
             snoozeMinutes: snoozeMinutes,
             onDismiss: { [weak self] in
-                onDismiss()
                 self?.dismiss()
+                onDismiss()
             },
             onSnooze: { [weak self] in
-                onSnooze()
                 self?.dismiss()
+                onSnooze()
             }
         )
 
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 260, height: 300),
-            styleMask: [.nonactivatingPanel, .titled, .closable],
+            styleMask: [.nonactivatingPanel, .borderless],
             backing: .buffered,
             defer: false
         )
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.title = "Loom"
-        panel.contentView = NSHostingView(rootView: view)
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = true
+        panel.isMovableByWindowBackground = true
+        panel.contentView = FirstMouseHostingView(rootView:
+            view
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Theme.background)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        )
         panel.center()
         panel.makeKeyAndOrderFront(nil)
         self.panel = panel
