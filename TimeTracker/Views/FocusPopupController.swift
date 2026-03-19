@@ -35,13 +35,10 @@ final class FocusPopupController {
             view
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.regularMaterial)
+                        .fill(Theme.background)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         )
-        // Let the hosting view compute its intrinsic size so the panel
-        // frame matches the SwiftUI content — otherwise buttons outside
-        // the contentRect are invisible to AppKit hit-testing.
         let size = hostingView.fittingSize
 
         let panel = ClickablePanel(
@@ -55,6 +52,7 @@ final class FocusPopupController {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
+        panel.isMovableByWindowBackground = true
         panel.contentView = hostingView
         panel.center()
         panel.makeKeyAndOrderFront(nil)
