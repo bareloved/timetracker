@@ -65,6 +65,7 @@ final class AppState {
     var hotkeyManager = HotkeyManager()
     var idleReturnController = IdleReturnPanelController()
     var launchPopupController = LaunchPopupController()
+    var focusGuard: FocusGuard?
     private(set) var categoryConfig: CategoryConfig?
     @ObservationIgnored @AppStorage("showMenuBarText") var showMenuBarText = true
     @ObservationIgnored @AppStorage("goalCategory") var goalCategory = "Coding"
@@ -99,11 +100,16 @@ final class AppState {
         let engine = SessionEngine(calendarWriter: calendarWriter)
         self.sessionEngine = engine
 
-        activityMonitor.onActivity = { [weak engine] record in
+        let guard_ = FocusGuard(sessionEngine: engine, categoryConfig: config)
+        self.focusGuard = guard_
+
+        activityMonitor.onActivity = { [weak engine, weak guard_] record in
             engine?.process(record)
+            guard_?.evaluate(record)
         }
-        activityMonitor.onIdle = { [weak engine] in
+        activityMonitor.onIdle = { [weak engine, weak guard_] in
             engine?.handleIdle(at: Date())
+            guard_?.reset()
         }
 
         // Hotkey
@@ -148,6 +154,7 @@ final class AppState {
     // MARK: - Start/Stop Tracking
 
     func startTracking(category: String, intention: String? = nil) {
+        focusGuard?.reset()
         sessionEngine?.startSession(category: category, intention: intention)
         activityMonitor.start()
     }
@@ -164,6 +171,7 @@ final class AppState {
     }
 
     func stopTracking() {
+        focusGuard?.reset()
         sessionEngine?.stopSession()
         activityMonitor.stop()
     }
@@ -211,6 +219,7 @@ final class AppState {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, self.sessionEngine?.isTracking == true else { return }
+                self.focusGuard?.resetDriftTimer()
                 self.activityMonitor.resume()
             }
         }
