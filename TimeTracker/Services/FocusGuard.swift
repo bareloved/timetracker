@@ -56,11 +56,9 @@ final class FocusGuard {
             return
         }
 
-        // For browser apps, wait for the second callback with URL data
-        if BrowserTracker.isBrowser(bundleId: record.bundleId) && record.pageURL == nil {
-            return
-        }
-
+        // For browser apps, prefer the second callback (with URL data) for accurate
+        // URL pattern matching. But if it never arrives, still evaluate without URL
+        // so the guard isn't silently bypassed.
         let resolved = config.resolve(
             bundleId: record.bundleId,
             currentCategory: session.category,
