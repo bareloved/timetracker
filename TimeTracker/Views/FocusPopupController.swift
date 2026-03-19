@@ -43,7 +43,7 @@ final class FocusPopupController {
 
         let panel = ClickablePanel(
             contentRect: NSRect(x: 0, y: 0, width: size.width, height: size.height),
-            styleMask: [.borderless],
+            styleMask: [.nonactivatingPanel, .borderless],
             backing: .buffered,
             defer: false
         )
@@ -55,6 +55,7 @@ final class FocusPopupController {
         panel.isMovableByWindowBackground = true
         panel.contentView = hostingView
         panel.center()
+        NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         self.panel = panel
     }
