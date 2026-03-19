@@ -31,8 +31,21 @@ final class FocusPopupController {
             }
         )
 
+        let hostingView = NSHostingView(rootView:
+            view
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.regularMaterial)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        )
+        // Let the hosting view compute its intrinsic size so the panel
+        // frame matches the SwiftUI content — otherwise buttons outside
+        // the contentRect are invisible to AppKit hit-testing.
+        let size = hostingView.fittingSize
+
         let panel = ClickablePanel(
-            contentRect: NSRect(x: 0, y: 0, width: 260, height: 240),
+            contentRect: NSRect(x: 0, y: 0, width: size.width, height: size.height),
             styleMask: [.nonactivatingPanel, .borderless],
             backing: .buffered,
             defer: false
@@ -42,14 +55,7 @@ final class FocusPopupController {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
-        panel.contentView = NSHostingView(rootView:
-            view
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.regularMaterial)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        )
+        panel.contentView = hostingView
         panel.center()
         panel.makeKeyAndOrderFront(nil)
         self.panel = panel
