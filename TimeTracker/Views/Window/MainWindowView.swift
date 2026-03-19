@@ -33,8 +33,12 @@ struct MainWindowView: View {
                         TodayTabView(
                             sessionEngine: engine,
                             isTracking: engine.isTracking,
-                            onShowSessionPicker: { appState.showSessionPicker() },
-                            onStop: { appState.stopTracking() }
+                            categories: Array((appState.categoryConfig?.categories.keys.sorted()) ?? []),
+                            onStart: { category, intention in
+                                appState.startTracking(category: category, intention: intention)
+                            },
+                            onStop: { appState.stopTracking() },
+                            focusGuard: appState.focusGuard
                         )
                     } else {
                         Text("Starting up...")

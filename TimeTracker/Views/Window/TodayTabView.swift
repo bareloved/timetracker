@@ -221,6 +221,20 @@ struct TodayTabView: View {
             .background(Theme.backgroundSecondary, in: Capsule())
             .overlay(Capsule().stroke(Theme.border))
 
+            // Distraction count
+            if let guard_ = focusGuard, !guard_.distractions.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 10))
+                    Text("\(guard_.distractions.count) distraction\(guard_.distractions.count == 1 ? "" : "s")")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(Theme.textTertiary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Theme.backgroundSecondary, in: Capsule())
+            }
+
             Spacer()
         }
         .padding(.horizontal, 24)
