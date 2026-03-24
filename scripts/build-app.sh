@@ -24,8 +24,8 @@ cp "Loom/Info.plist" "$CONTENTS/Info.plist"
 cp "Loom/Loom.entitlements" "$CONTENTS/Resources/"
 
 # Copy resources
-if [ -d "$BUILD_DIR/Loom_Loom.resources" ]; then
-    cp -R "$BUILD_DIR/Loom_Loom.resources/"* "$CONTENTS/Resources/" 2>/dev/null || true
+if [ -d "$BUILD_DIR/Loom_Loom.bundle" ]; then
+    cp -R "$BUILD_DIR/Loom_Loom.bundle" "$CONTENTS/Resources/Loom_Loom.bundle"
 fi
 
 # Sign with entitlements

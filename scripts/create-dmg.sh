@@ -30,8 +30,8 @@ cp "$BUILD_DIR/$APP_NAME" "$CONTENTS/MacOS/$APP_NAME"
 cp "Loom/Info.plist" "$CONTENTS/Info.plist"
 cp "Loom/Loom.entitlements" "$CONTENTS/Resources/"
 
-if [ -d "$BUILD_DIR/Loom_Loom.resources" ]; then
-    cp -R "$BUILD_DIR/Loom_Loom.resources/"* "$CONTENTS/Resources/" 2>/dev/null || true
+if [ -d "$BUILD_DIR/Loom_Loom.bundle" ]; then
+    cp -R "$BUILD_DIR/Loom_Loom.bundle" "$CONTENTS/Resources/Loom_Loom.bundle"
 fi
 
 # Copy app icon
