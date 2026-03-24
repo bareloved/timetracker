@@ -6,6 +6,8 @@ final class LaunchPopupController {
     private var panel: NSPanel?
 
     func show(categories: [String], onStart: @escaping (String, String?) -> Void, onDismiss: @escaping () -> Void) {
+        dismiss()
+
         let view = LaunchPopupView(
             categories: categories,
             onStart: { [weak self] category, intention in
