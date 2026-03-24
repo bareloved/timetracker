@@ -9,10 +9,23 @@ struct CategoryRule: Codable, Equatable {
 struct CategoryConfig: Codable, Equatable {
     var categories: [String: CategoryRule]
     var defaultCategory: String
+    var categoryOrder: [String]?
 
     enum CodingKeys: String, CodingKey {
         case categories
         case defaultCategory = "default_category"
+        case categoryOrder = "category_order"
+    }
+
+    /// Category names in the user's preferred order, falling back to alphabetical.
+    var orderedCategoryNames: [String] {
+        let allKeys = Set(categories.keys)
+        if let order = categoryOrder {
+            let ordered = order.filter { allKeys.contains($0) }
+            let missing = allKeys.subtracting(ordered).sorted()
+            return ordered + missing
+        }
+        return allKeys.sorted()
     }
 
     func category(forBundleId bundleId: String) -> String? {

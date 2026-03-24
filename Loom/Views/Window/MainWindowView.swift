@@ -33,7 +33,7 @@ struct MainWindowView: View {
                         TodayTabView(
                             sessionEngine: engine,
                             isTracking: engine.isTracking,
-                            categories: Array((appState.categoryConfig?.categories.keys.sorted()) ?? []),
+                            categories: appState.categoryConfig?.orderedCategoryNames ?? [],
                             onStart: { category, intention in
                                 appState.startTracking(category: category, intention: intention)
                             },
@@ -51,7 +51,7 @@ struct MainWindowView: View {
                             sessionEngine: engine,
                             calendarReader: appState.calendarReader,
                             calendarWriter: appState.calendarWriter,
-                            categories: Array((try? CategoryConfigLoader.loadOrCreateDefault())?.categories.keys.sorted() ?? [])
+                            categories: (try? CategoryConfigLoader.loadOrCreateDefault())?.orderedCategoryNames ?? []
                         )
                     }
                 case .stats:
