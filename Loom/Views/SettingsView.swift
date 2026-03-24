@@ -20,7 +20,10 @@ struct SettingsView: View {
     }
 
     private var sortedCategories: [(String, CategoryRule)] {
-        config.categories.sorted { $0.key < $1.key }
+        config.orderedCategoryNames.compactMap { name in
+            guard let rule = config.categories[name] else { return nil }
+            return (name, rule)
+        }
     }
 
     var body: some View {
@@ -58,7 +61,7 @@ struct SettingsView: View {
 
             Section("Focus Goal") {
                 Picker("Category", selection: $goalCategory) {
-                    ForEach(Array(config.categories.keys.sorted()), id: \.self) { name in
+                    ForEach(config.orderedCategoryNames, id: \.self) { name in
                         Text(name).tag(name)
                     }
                 }

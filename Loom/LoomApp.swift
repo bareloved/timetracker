@@ -141,7 +141,7 @@ final class AppState {
         setupWindowObservers()
 
         // Show launch popup
-        let categoryNames = Array(config.categories.keys).sorted()
+        let categoryNames = config.orderedCategoryNames
         launchPopupController.show(
             categories: categoryNames,
             onStart: { [weak self] category, intention in
@@ -163,7 +163,7 @@ final class AppState {
     }
 
     func showSessionPicker() {
-        let categoryNames = categoryConfig.map { Array($0.categories.keys).sorted() } ?? ["Other"]
+        let categoryNames = categoryConfig?.orderedCategoryNames ?? ["Other"]
         launchPopupController.show(
             categories: categoryNames,
             onStart: { [weak self] category, intention in

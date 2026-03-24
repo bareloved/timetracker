@@ -36,6 +36,9 @@ struct SettingsTabView: View {
     @State private var newUrlPattern = ""
     @State private var editingCalendarName = ""
     @State private var showingIconPicker = false
+    @State private var draggingCategory: String?
+    @State private var dragOffset: CGFloat = 0
+    @State private var categoryRowHeight: CGFloat = 30
 
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("showMenuBarText") private var showMenuBarText = true
@@ -57,7 +60,10 @@ struct SettingsTabView: View {
     }
 
     private var sortedCategories: [(String, CategoryRule)] {
-        config.categories.sorted { $0.key < $1.key }
+        config.orderedCategoryNames.compactMap { name in
+            guard let rule = config.categories[name] else { return nil }
+            return (name, rule)
+        }
     }
 
     var body: some View {
@@ -282,7 +288,7 @@ struct SettingsTabView: View {
                         .foregroundStyle(Theme.textPrimary)
                     Spacer()
                     Picker("", selection: $goalCategory) {
-                        ForEach(Array(config.categories.keys.sorted()), id: \.self) { name in
+                        ForEach(config.orderedCategoryNames, id: \.self) { name in
                             Text(name).tag(name)
                         }
                     }
@@ -486,27 +492,7 @@ struct SettingsTabView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(sortedCategories, id: \.0) { name, _ in
-                            Button(action: { selectedCategory = name }) {
-                                HStack(spacing: 8) {
-                                    Circle()
-                                        .fill(CategoryColors.color(for: name))
-                                        .frame(width: 8, height: 8)
-                                    Text(name)
-                                        .font(.system(size: 13))
-                                }
-                                .foregroundStyle(selectedCategory == name ? .white : Theme.textPrimary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 7)
-                                .contentShape(Rectangle())
-                                .background(
-                                    selectedCategory == name
-                                        ? AnyShapeStyle(CategoryColors.accent)
-                                        : AnyShapeStyle(.clear),
-                                    in: RoundedRectangle(cornerRadius: 6)
-                                )
-                            }
-                            .buttonStyle(.plain)
+                            categoryRow(name: name)
                         }
                     }
                     .padding(6)
@@ -731,6 +717,8 @@ struct SettingsTabView: View {
         let name = newCategoryName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty, config.categories[name] == nil else { return }
         config.categories[name] = CategoryRule(apps: [], related: nil, urlPatterns: nil)
+        ensureOrderArray()
+        config.categoryOrder?.append(name)
         selectedCategory = name
         newCategoryName = ""
     }
@@ -738,7 +726,79 @@ struct SettingsTabView: View {
     private func removeSelectedCategory() {
         guard let name = selectedCategory else { return }
         config.categories.removeValue(forKey: name)
+        config.categoryOrder?.removeAll { $0 == name }
         selectedCategory = sortedCategories.first?.0
+    }
+
+    @ViewBuilder
+    private func categoryRow(name: String) -> some View {
+        let isDragging = draggingCategory == name
+        HStack(spacing: 8) {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 9))
+                .foregroundStyle(selectedCategory == name ? .white.opacity(0.5) : Theme.textTertiary)
+            Circle()
+                .fill(CategoryColors.color(for: name))
+                .frame(width: 8, height: 8)
+            Text(name)
+                .font(.system(size: 13))
+        }
+        .foregroundStyle(selectedCategory == name ? .white : Theme.textPrimary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .contentShape(Rectangle())
+        .background(
+            selectedCategory == name
+                ? AnyShapeStyle(CategoryColors.accent)
+                : AnyShapeStyle(.clear),
+            in: RoundedRectangle(cornerRadius: 6)
+        )
+        .opacity(isDragging ? 0.4 : 1)
+        .background(
+            GeometryReader { geo in
+                Color.clear.onAppear { categoryRowHeight = geo.size.height + 2 }
+            }
+        )
+        .offset(y: isDragging ? dragOffset : 0)
+        .zIndex(isDragging ? 1 : 0)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if draggingCategory == nil {
+                        ensureOrderArray()
+                        draggingCategory = name
+                    }
+                    dragOffset = value.translation.height
+                    let steps = Int(round(value.translation.height / categoryRowHeight))
+                    if steps != 0, let order = config.categoryOrder,
+                       let fromIndex = order.firstIndex(of: name) {
+                        let toIndex = min(max(fromIndex + steps, 0), order.count - 1)
+                        if toIndex != fromIndex {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                config.categoryOrder?.remove(at: fromIndex)
+                                config.categoryOrder?.insert(name, at: toIndex)
+                            }
+                            dragOffset = value.translation.height - CGFloat(steps) * categoryRowHeight
+                        }
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        draggingCategory = nil
+                        dragOffset = 0
+                    }
+                }
+        )
+        .simultaneousGesture(
+            TapGesture().onEnded { selectedCategory = name }
+        )
+    }
+
+    private func ensureOrderArray() {
+        if config.categoryOrder == nil {
+            config.categoryOrder = config.orderedCategoryNames
+        }
     }
 
     private func addApp(to category: String) {
