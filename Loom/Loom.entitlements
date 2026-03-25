@@ -4,5 +4,19 @@
 <dict>
     <key>com.apple.security.personal-information.calendars</key>
     <true/>
+    <key>com.apple.developer.icloud-container-identifiers</key>
+    <array>
+        <string>iCloud.com.bareloved.Loom</string>
+    </array>
+    <key>com.apple.developer.icloud-services</key>
+    <array>
+        <string>CloudKit</string>
+    </array>
+    <key>com.apple.developer.aps-environment</key>
+    <string>development</string>
+    <key>com.apple.application-identifier</key>
+    <string>HYKF8YXY8W.com.bareloved.LoomMac</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>HYKF8YXY8W</string>
 </dict>
 </plist>

@@ -68,6 +68,7 @@ final class AppState {
     var syncEngine: SyncEngine?
     var focusGuard: FocusGuard?
     private(set) var categoryConfig: CategoryConfig?
+    private var remotePollTimer: Timer?
     @ObservationIgnored @AppStorage("showMenuBarText") var showMenuBarText = true
     @ObservationIgnored @AppStorage("goalCategory") var goalCategory = "Coding"
     @ObservationIgnored @AppStorage("goalHours") var goalHours = 0.0
@@ -78,10 +79,13 @@ final class AppState {
     private var menuBarTimer: Timer?
 
     func setup() async {
-        let granted = await calendarWriter.requestAccess()
-        if !granted {
-            print("Calendar access not granted")
+        Task {
+            let granted = await calendarWriter.requestAccess()
+            if !granted {
+                print("Calendar access not granted")
+            }
         }
+        try? await Task.sleep(for: .milliseconds(500))
 
         // Init calendar reader with shared event store
         calendarReader = CalendarReader(eventStore: calendarWriter.sharedEventStore)
@@ -157,6 +161,9 @@ final class AppState {
 
         Task { await sync.setupSubscriptions() }
 
+        print("[LoomMac] starting remote polling")
+        startRemotePolling()
+
         isReady = true
     }
 
@@ -186,6 +193,35 @@ final class AppState {
         focusGuard?.reset()
         sessionEngine?.stopSession()
         activityMonitor.stop()
+    }
+
+    // MARK: - Remote Session Polling
+
+    private func startRemotePolling() {
+        remotePollTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.checkRemoteSession()
+            }
+        }
+    }
+
+    private func checkRemoteSession() async {
+        guard let syncEngine else { return }
+        await syncEngine.fetchActiveState()
+
+        let isLocallyTracking = sessionEngine?.isTracking == true
+
+        print("[RemotePoll] activeID=\(syncEngine.activeSessionID?.uuidString ?? "nil") source=\(syncEngine.activeSource ?? "nil") localTracking=\(isLocallyTracking)")
+
+        if let activeID = syncEngine.activeSessionID,
+           syncEngine.activeSource != "mac",
+           !isLocallyTracking {
+            print("[RemotePoll] Starting remote session: \(activeID)")
+            if let remoteSession = await syncEngine.fetchSession(by: activeID) {
+                startTracking(category: remoteSession.category, intention: remoteSession.intention)
+            }
+        }
     }
 
     // MARK: - Main Window
@@ -420,6 +456,7 @@ final class AppState {
 @main
 struct LoomApp: App {
     @State private var appState = AppState()
+    @State private var hasStartedSetup = false
     @AppStorage("appearance") private var appearance = "system"
 
     private var appearanceScheme: ColorScheme? {
@@ -476,6 +513,8 @@ struct LoomApp: App {
                             .padding()
                     }
                     .task {
+                        guard !hasStartedSetup else { return }
+                        hasStartedSetup = true
                         await appState.setup()
                     }
                 }
