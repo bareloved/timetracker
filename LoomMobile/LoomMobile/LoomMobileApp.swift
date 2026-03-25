@@ -103,8 +103,7 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            // Placeholder tabs -- views will be added in Tasks 9-11
-            Text("Now")
+            NowTabView(appState: appState)
                 .tabItem {
                     Label("Now", systemImage: "circle.fill")
                 }
