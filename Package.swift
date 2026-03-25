@@ -7,6 +7,9 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Loom",
+            dependencies: [
+                .product(name: "LoomKit", package: "LoomKit")
+            ],
             path: "Loom",
             exclude: ["Info.plist", "Loom.entitlements"],
             resources: [
@@ -21,4 +24,8 @@ let package = Package(
             path: "LoomTests"
         )
     ]
+)
+
+package.dependencies.append(
+    .package(path: "LoomKit")
 )
