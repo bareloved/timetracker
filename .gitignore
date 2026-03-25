@@ -5,3 +5,5 @@
 .swiftpm/
 *.dmg
 .superpowers/
+LoomMac/
+*.xcuserstate

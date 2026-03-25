@@ -6,13 +6,16 @@ import LoomKit
 final class MobileAppState {
     var syncEngine = SyncEngine(source: "ios")
     var categoryConfig: CategoryConfig?
-    var currentSession: Session?      // locally started session
-    var remoteSession: Session?       // fetched from CloudKit when Mac is tracking
+    var currentSession: Session?
+    var remoteSession: Session?
     var isReady = false
 
     func setup() async {
+        print("[LoomMobile] setup() starting")
         await syncEngine.setupSubscriptions()
+        print("[LoomMobile] subscriptions done")
         await refreshActiveState()
+        print("[LoomMobile] active state refreshed")
 
         if let remoteConfig = await syncEngine.fetchCategoryConfig() {
             categoryConfig = remoteConfig
@@ -25,7 +28,6 @@ final class MobileAppState {
 
     func refreshActiveState() async {
         await syncEngine.fetchActiveState()
-        // If there's an active remote session, fetch its details
         if let activeID = syncEngine.activeSessionID, currentSession == nil {
             remoteSession = await syncEngine.fetchSession(by: activeID)
         } else {
@@ -34,10 +36,10 @@ final class MobileAppState {
     }
 
     func startSession(category: String, intention: String?) async {
-        // Check for existing active session
+        print("[LoomMobile] startSession: \(category)")
         await syncEngine.fetchActiveState()
         if syncEngine.activeSessionID != nil {
-            // Caller should handle this -- prompt user first
+            print("[LoomMobile] already active, skipping")
             return
         }
 
@@ -45,11 +47,12 @@ final class MobileAppState {
             category: category,
             startTime: Date(),
             appsUsed: [],
-            intention: intention,
-            source: "ios"
+            intention: intention
         )
         currentSession = session
+        print("[LoomMobile] publishing session to CloudKit...")
         await syncEngine.publishSessionStart(session)
+        print("[LoomMobile] session published")
     }
 
     func stopSession() async {
@@ -58,7 +61,6 @@ final class MobileAppState {
             await syncEngine.publishSessionStop(session)
             currentSession = nil
         } else if syncEngine.activeSessionID != nil {
-            // Remote stop
             await syncEngine.forceStopRemoteSession()
         }
         remoteSession = nil

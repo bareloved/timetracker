@@ -3,161 +3,111 @@ import LoomKit
 
 struct HistoryTabView: View {
     let appState: MobileAppState
-
-    @State private var selectedDate: Date = Date()
+    @State private var selectedDate = Date()
     @State private var sessions: [Session] = []
     @State private var isLoading = false
 
-    private let calendar = Calendar.current
-
-    // The week containing the selected date (Mon-Sun)
-    private var weekDates: [Date] {
-        let weekday = calendar.component(.weekday, from: selectedDate)
-        // weekday: 1=Sun, 2=Mon ... 7=Sat  -> offset to make Monday first
-        let mondayOffset = (weekday + 5) % 7
-        guard let monday = calendar.date(byAdding: .day, value: -mondayOffset, to: calendar.startOfDay(for: selectedDate)) else {
-            return []
-        }
-        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
-    }
-
-    private var totalDuration: TimeInterval {
-        sessions.reduce(0) { $0 + $1.duration }
-    }
-
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                weekStrip
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .padding(.bottom, 16)
+            ZStack {
+                Theme.background.ignoresSafeArea()
 
-                if !sessions.isEmpty {
+                VStack(spacing: 0) {
+                    weekStrip
                     dailySummaryBar
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 16)
+                    sessionList
                 }
-
-                Divider()
-                    .overlay(Theme.border)
-
-                sessionList
             }
-            .background(Theme.background)
             .navigationTitle("History")
-            .navigationBarTitleDisplayMode(.large)
-        }
-        .task {
-            await loadSessions()
-        }
-        .onChange(of: selectedDate) {
-            Task { await loadSessions() }
+            .navigationBarTitleDisplayMode(.inline)
+            .task { await loadSessions() }
+            .onChange(of: selectedDate) {
+                Task { await loadSessions() }
+            }
         }
     }
 
-    // MARK: - Week Strip
-
     private var weekStrip: some View {
-        HStack(spacing: 0) {
-            ForEach(weekDates, id: \.self) { date in
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: selectedDate))!
+
+        return HStack {
+            ForEach(0..<7, id: \.self) { offset in
+                let date = calendar.date(byAdding: .day, value: offset, to: weekStart)!
                 let isSelected = calendar.isDate(date, inSameDayAs: selectedDate)
-                let isToday = calendar.isDateInToday(date)
+                let isToday = calendar.isDate(date, inSameDayAs: today)
 
                 Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        selectedDate = date
-                    }
+                    selectedDate = date
                 } label: {
                     VStack(spacing: 4) {
-                        Text(dayAbbreviation(for: date))
+                        Text(date.formatted(.dateTime.weekday(.narrow)))
                             .font(.caption2)
-                            .foregroundStyle(isSelected ? CategoryColors.accent : Theme.textTertiary)
-
                         Text("\(calendar.component(.day, from: date))")
-                            .font(.callout)
+                            .font(.caption)
                             .fontWeight(isSelected ? .bold : .regular)
-                            .foregroundStyle(isSelected ? .white : (isToday ? CategoryColors.accent : Theme.textPrimary))
-                            .frame(width: 34, height: 34)
-                            .background {
-                                if isSelected {
-                                    Circle().fill(CategoryColors.accent)
-                                } else if isToday {
-                                    Circle().stroke(CategoryColors.accent, lineWidth: 1.5)
-                                }
-                            }
+                            .frame(width: 28, height: 28)
+                            .background(isSelected ? CategoryColors.accent : Color.clear)
+                            .foregroundStyle(isSelected ? .white : (isToday ? CategoryColors.accent : Theme.textSecondary))
+                            .clipShape(Circle())
                     }
+                    .foregroundStyle(isSelected ? CategoryColors.accent : Theme.textTertiary)
                 }
+                .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
             }
         }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
-
-    // MARK: - Daily Summary Bar
 
     private var dailySummaryBar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            // Colored segment bar
-            GeometryReader { geometry in
-                HStack(spacing: 1.5) {
-                    ForEach(categoryDurations, id: \.category) { item in
-                        let fraction = totalDuration > 0 ? item.duration / totalDuration : 0
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(CategoryColors.color(for: item.category))
-                            .frame(width: max(4, geometry.size.width * fraction))
-                    }
-                }
-            }
-            .frame(height: 8)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
+        let totalDuration = sessions.reduce(0.0) { $0 + $1.duration }
+        let hours = Int(totalDuration) / 3600
+        let minutes = (Int(totalDuration) % 3600) / 60
 
-            Text(formattedDuration(totalDuration))
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("\(selectedDate.formatted(.dateTime.weekday(.wide))) — \(hours)h \(minutes)m tracked")
                 .font(.caption)
                 .foregroundStyle(Theme.textTertiary)
-        }
-    }
 
-    private var categoryDurations: [(category: String, duration: TimeInterval)] {
-        var map: [String: TimeInterval] = [:]
-        for session in sessions {
-            map[session.category, default: 0] += session.duration
+            if !sessions.isEmpty {
+                GeometryReader { geo in
+                    HStack(spacing: 2) {
+                        ForEach(sessions) { session in
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(CategoryColors.color(for: session.category))
+                                .frame(width: max(2, geo.size.width * session.duration / max(totalDuration, 1)))
+                        }
+                    }
+                }
+                .frame(height: 6)
+            }
         }
-        return map.map { (category: $0.key, duration: $0.value) }
-            .sorted { $0.duration > $1.duration }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
-
-    // MARK: - Session List
 
     private var sessionList: some View {
-        Group {
-            if isLoading {
-                Spacer()
-                ProgressView()
-                    .tint(Theme.textTertiary)
-                Spacer()
-            } else if sessions.isEmpty {
-                Spacer()
-                VStack(spacing: 8) {
-                    Image(systemName: "tray")
-                        .font(.largeTitle)
-                        .foregroundStyle(Theme.textQuaternary)
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                if isLoading {
+                    ProgressView()
+                        .padding()
+                } else if sessions.isEmpty {
                     Text("No sessions")
                         .font(.subheadline)
                         .foregroundStyle(Theme.textTertiary)
-                }
-                Spacer()
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(sessions) { session in
-                            NavigationLink(destination: SessionDetailView(session: session)) {
-                                sessionRow(session)
-                            }
-
-                            Divider()
-                                .overlay(Theme.border)
-                                .padding(.leading, 16)
+                        .padding(.top, 40)
+                } else {
+                    ForEach(sessions) { session in
+                        NavigationLink {
+                            SessionDetailView(session: session)
+                        } label: {
+                            sessionRow(session)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -165,76 +115,55 @@ struct HistoryTabView: View {
     }
 
     private func sessionRow(_ session: Session) -> some View {
-        HStack(spacing: 12) {
-            // Category color indicator
-            RoundedRectangle(cornerRadius: 3)
-                .fill(CategoryColors.color(for: session.category))
-                .frame(width: 4, height: 40)
-
+        HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(session.category)
-                    .font(.subheadline)
+                    .font(.body)
                     .fontWeight(.semibold)
                     .foregroundStyle(Theme.textPrimary)
-
                 if let intention = session.intention, !intention.isEmpty {
                     Text(intention)
                         .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                        .lineLimit(1)
+                        .foregroundStyle(Theme.textTertiary)
                 }
             }
-
             Spacer()
-
             VStack(alignment: .trailing, spacing: 2) {
-                Text(formattedDuration(session.duration))
-                    .font(.subheadline)
+                Text(durationString(session.duration))
+                    .font(.body)
                     .fontWeight(.medium)
+                    .monospacedDigit()
                     .foregroundStyle(Theme.textPrimary)
-
-                Text(timeRange(for: session))
+                Text(timeRange(session))
                     .font(.caption2)
-                    .foregroundStyle(Theme.textTertiary)
+                    .foregroundStyle(Theme.textQuaternary)
             }
-
-            Image(systemName: "chevron.right")
-                .font(.caption2)
-                .foregroundStyle(Theme.textQuaternary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .contentShape(Rectangle())
-    }
-
-    // MARK: - Helpers
-
-    private func dayAbbreviation(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        return formatter.string(from: date).uppercased()
-    }
-
-    private func formattedDuration(_ interval: TimeInterval) -> String {
-        let hours = Int(interval) / 3600
-        let minutes = (Int(interval) % 3600) / 60
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
+        .background(Theme.background)
+        .overlay(alignment: .bottom) {
+            Theme.border.frame(height: 1)
         }
-        return "\(minutes)m"
-    }
-
-    private func timeRange(for session: Session) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        let start = formatter.string(from: session.startTime)
-        let end = session.endTime.map { formatter.string(from: $0) } ?? "now"
-        return "\(start) - \(end)"
     }
 
     private func loadSessions() async {
         isLoading = true
         sessions = await appState.fetchSessions(for: selectedDate)
         isLoading = false
+    }
+
+    private func durationString(_ duration: TimeInterval) -> String {
+        let total = Int(duration)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        if h > 0 { return "\(h)h \(m)m" }
+        return "\(m)m"
+    }
+
+    private func timeRange(_ session: Session) -> String {
+        let start = session.startTime.formatted(date: .omitted, time: .shortened)
+        let end = (session.endTime ?? Date()).formatted(date: .omitted, time: .shortened)
+        return "\(start) – \(end)"
     }
 }

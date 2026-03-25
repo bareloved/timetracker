@@ -28,9 +28,12 @@ public final class CloudKitManager: Sendable {
         var fields: [String: Any] = [
             "category": session.category,
             "startTime": session.startTime,
-            "appsUsed": session.appsUsed,
             "source": source
         ]
+        // CloudKit rejects empty arrays for new fields — only include if non-empty
+        if !session.appsUsed.isEmpty {
+            fields["appsUsed"] = session.appsUsed
+        }
         if let endTime = session.endTime {
             fields["endTime"] = endTime
         }

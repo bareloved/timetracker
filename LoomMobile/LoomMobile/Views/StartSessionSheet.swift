@@ -5,146 +5,123 @@ struct StartSessionSheet: View {
     let appState: MobileAppState
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedCategory: String?
+    @State private var selectedCategory: String = "Coding"
     @State private var intention: String = ""
-    @State private var showActiveAlert = false
-    @State private var isStarting = false
+    @State private var showActiveWarning = false
 
     private var categories: [String] {
-        appState.categoryConfig?.orderedCategoryNames ?? []
+        appState.categoryConfig?.orderedCategoryNames ?? ["Other"]
     }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+            ZStack {
+                Theme.background.ignoresSafeArea()
 
-                    // Category picker
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("CATEGORY")
-                            .font(.caption)
-                            .textCase(.uppercase)
-                            .tracking(1)
-                            .foregroundStyle(Theme.textTertiary)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Category")
+                                .font(.caption)
+                                .textCase(.uppercase)
+                                .tracking(1)
+                                .foregroundStyle(Theme.textTertiary)
 
-                        FlowLayout(spacing: 8) {
-                            ForEach(categories, id: \.self) { category in
-                                categoryChip(category)
+                            FlowLayout(spacing: 8) {
+                                ForEach(categories, id: \.self) { cat in
+                                    Button {
+                                        selectedCategory = cat
+                                    } label: {
+                                        Text(cat)
+                                            .font(.subheadline)
+                                            .fontWeight(selectedCategory == cat ? .semibold : .regular)
+                                            .padding(.horizontal, 14)
+                                            .padding(.vertical, 8)
+                                            .background(
+                                                selectedCategory == cat
+                                                    ? CategoryColors.color(for: cat).opacity(0.2)
+                                                    : Theme.trackFill
+                                            )
+                                            .foregroundStyle(
+                                                selectedCategory == cat
+                                                    ? CategoryColors.color(for: cat)
+                                                    : Theme.textSecondary
+                                            )
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .strokeBorder(
+                                                        selectedCategory == cat
+                                                            ? CategoryColors.color(for: cat)
+                                                            : Theme.border,
+                                                        lineWidth: 1
+                                                    )
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
-                    }
 
-                    // Intention field
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("INTENTION")
-                            .font(.caption)
-                            .textCase(.uppercase)
-                            .tracking(1)
-                            .foregroundStyle(Theme.textTertiary)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Intention")
+                                .font(.caption)
+                                .textCase(.uppercase)
+                                .tracking(1)
+                                .foregroundStyle(Theme.textTertiary)
 
-                        TextField("What do you want to focus on?", text: $intention)
-                            .textFieldStyle(.plain)
-                            .padding(12)
-                            .background(Theme.backgroundSecondary, in: RoundedRectangle(cornerRadius: 10))
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.border, lineWidth: 1))
-                    }
-
-                    // Start button
-                    Button {
-                        startSession()
-                    } label: {
-                        if isStarting {
-                            ProgressView()
-                                .tint(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                        } else {
-                            Text("Start Session")
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
+                            TextField("What are you working on?", text: $intention)
+                                .textFieldStyle(.roundedBorder)
                         }
                     }
-                    .background(
-                        selectedCategory != nil ? CategoryColors.accent : Theme.textQuaternary,
-                        in: RoundedRectangle(cornerRadius: 12)
-                    )
-                    .disabled(selectedCategory == nil || isStarting)
-                    .padding(.top, 8)
+                    .padding(24)
                 }
-                .padding(24)
             }
-            .background(Theme.background)
-            .navigationTitle("Start Session")
+            .navigationTitle("New Session")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(Theme.textSecondary)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Start") {
+                        Task {
+                            await appState.startSession(
+                                category: selectedCategory,
+                                intention: intention.isEmpty ? nil : intention
+                            )
+                            dismiss()
+                        }
+                    }
+                    .fontWeight(.semibold)
+                    .tint(CategoryColors.accent)
                 }
             }
-            .alert("Session Already Active", isPresented: $showActiveAlert) {
-                Button("OK", role: .cancel) { }
+            .alert("Session Already Active", isPresented: $showActiveWarning) {
+                Button("Stop & Start New") {
+                    Task {
+                        await appState.stopSession()
+                        await appState.startSession(
+                            category: selectedCategory,
+                            intention: intention.isEmpty ? nil : intention
+                        )
+                        dismiss()
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
             } message: {
-                Text("There is already an active session. Stop it before starting a new one.")
+                let source = appState.syncEngine.activeSource == "mac" ? "Mac" : "iPhone"
+                Text("A session is already running on \(source). Stop it and start a new one?")
             }
-        }
-    }
-
-    // MARK: - Category Chip
-
-    private func categoryChip(_ category: String) -> some View {
-        let isSelected = selectedCategory == category
-        let color = CategoryColors.color(for: category)
-
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                selectedCategory = category
+            .task {
+                await appState.refreshActiveState()
+                if appState.syncEngine.activeSessionID != nil {
+                    showActiveWarning = true
+                }
             }
-        } label: {
-            Text(category)
-                .font(.subheadline)
-                .foregroundStyle(isSelected ? .white : Theme.textSecondary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    isSelected ? color : Theme.backgroundSecondary,
-                    in: Capsule()
-                )
-                .overlay(
-                    Capsule()
-                        .stroke(isSelected ? color : Theme.border, lineWidth: 1)
-                )
-        }
-    }
-
-    // MARK: - Actions
-
-    private func startSession() {
-        guard let category = selectedCategory else { return }
-        isStarting = true
-
-        Task {
-            // Check for existing active session
-            await appState.syncEngine.fetchActiveState()
-            if appState.syncEngine.activeSessionID != nil && appState.currentSession == nil {
-                isStarting = false
-                showActiveAlert = true
-                return
-            }
-
-            await appState.startSession(
-                category: category,
-                intention: intention.isEmpty ? nil : intention
-            )
-            isStarting = false
-            dismiss()
         }
     }
 }
-
-// MARK: - FlowLayout
 
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8

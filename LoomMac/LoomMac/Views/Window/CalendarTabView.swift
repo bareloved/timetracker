@@ -1,5 +1,4 @@
 import SwiftUI
-import EventKit
 
 struct CalendarTabView: View {
     let sessionEngine: SessionEngine
