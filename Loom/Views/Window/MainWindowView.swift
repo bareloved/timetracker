@@ -51,6 +51,7 @@ struct MainWindowView: View {
                             sessionEngine: engine,
                             calendarReader: appState.calendarReader,
                             calendarWriter: appState.calendarWriter,
+                            syncEngine: appState.syncEngine,
                             categories: (try? CategoryConfigLoader.loadOrCreateDefault())?.orderedCategoryNames ?? []
                         )
                     }
@@ -58,7 +59,8 @@ struct MainWindowView: View {
                     if let engine = appState.sessionEngine {
                         StatsTabView(
                             sessionEngine: engine,
-                            calendarReader: appState.calendarReader
+                            calendarReader: appState.calendarReader,
+                            syncEngine: appState.syncEngine
                         )
                     }
                 case .settings:

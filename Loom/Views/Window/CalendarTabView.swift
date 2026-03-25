@@ -5,6 +5,7 @@ struct CalendarTabView: View {
     let sessionEngine: SessionEngine
     let calendarReader: CalendarReader?
     let calendarWriter: CalendarWriter
+    let syncEngine: SyncEngine?
     let categories: [String]
 
     @State private var selectedDate = Date()
@@ -192,8 +193,23 @@ struct CalendarTabView: View {
     }
 
     private func loadWeekSessions() {
-        weekSessions = calendarReader?.sessionsForWeek(containing: selectedDate) ?? [:]
-        loadBackgroundEvents()
+        Task {
+            guard let syncEngine else {
+                weekSessions = [:]
+                loadBackgroundEvents()
+                return
+            }
+            let weekStart = calendar.dateInterval(of: .weekOfYear, for: selectedDate)?.start ?? selectedDate
+            let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? selectedDate
+            let sessions = await syncEngine.fetchSessions(from: weekStart, to: weekEnd)
+            var grouped: [Date: [Session]] = [:]
+            for session in sessions {
+                let dayStart = calendar.startOfDay(for: session.startTime)
+                grouped[dayStart, default: []].append(session)
+            }
+            weekSessions = grouped
+            loadBackgroundEvents()
+        }
     }
 
     private func loadBackgroundEvents() {

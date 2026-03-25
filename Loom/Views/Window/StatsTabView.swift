@@ -3,6 +3,7 @@ import SwiftUI
 struct StatsTabView: View {
     let sessionEngine: SessionEngine
     let calendarReader: CalendarReader?
+    let syncEngine: SyncEngine?
 
     @State private var selectedDate = Date()
     @State private var weekSessions: [Date: [Session]] = [:]
@@ -274,7 +275,21 @@ struct StatsTabView: View {
     }
 
     private func loadWeekSessions() {
-        weekSessions = calendarReader?.sessionsForWeek(containing: selectedDate) ?? [:]
+        Task {
+            guard let syncEngine else {
+                weekSessions = [:]
+                return
+            }
+            let weekStart = calendar.dateInterval(of: .weekOfYear, for: selectedDate)?.start ?? selectedDate
+            let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? selectedDate
+            let sessions = await syncEngine.fetchSessions(from: weekStart, to: weekEnd)
+            var grouped: [Date: [Session]] = [:]
+            for session in sessions {
+                let dayStart = calendar.startOfDay(for: session.startTime)
+                grouped[dayStart, default: []].append(session)
+            }
+            weekSessions = grouped
+        }
     }
 
     private func formatDuration(_ interval: TimeInterval) -> String {
