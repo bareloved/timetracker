@@ -107,7 +107,7 @@ struct ContentView: View {
                 .tabItem {
                     Label("Now", systemImage: "circle.fill")
                 }
-            Text("History")
+            HistoryTabView(appState: appState)
                 .tabItem {
                     Label("History", systemImage: "list.bullet")
                 }
