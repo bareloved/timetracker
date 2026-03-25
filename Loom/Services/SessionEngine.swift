@@ -54,6 +54,9 @@ final class SessionEngine {
             session.intention = value
             currentSession = session
             calendarWriter?.updateCurrentEvent(session: session)
+            if let syncEngine {
+                Task { await syncEngine.publishSessionUpdate(session) }
+            }
         }
     }
 
@@ -62,6 +65,9 @@ final class SessionEngine {
             session.category = category
             currentSession = session
             calendarWriter?.updateCurrentEvent(session: session)
+            if let syncEngine {
+                Task { await syncEngine.publishSessionUpdate(session) }
+            }
         }
     }
 
