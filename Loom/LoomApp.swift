@@ -160,6 +160,7 @@ final class AppState {
         )
 
         Task { await sync.setupSubscriptions() }
+        Task { await sync.publishCategoryConfig(config) }
 
         print("[LoomMac] starting remote polling")
         startRemotePolling()
