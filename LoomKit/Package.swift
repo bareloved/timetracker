@@ -10,7 +10,10 @@ let package = Package(
     targets: [
         .target(
             name: "LoomKit",
-            path: "Sources/LoomKit"
+            path: "Sources/LoomKit",
+            resources: [
+                .copy("Config/Resources/default-categories.json")
+            ]
         ),
         .testTarget(
             name: "LoomKitTests",
