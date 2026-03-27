@@ -12,7 +12,7 @@ Two-phase delivery of a Sessions tab for Loom's main window. Phase 1 builds the 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: List & Navigation** - Sessions tab with week navigation, session rows, inline expand, and live today merge
+- [x] **Phase 1: List & Navigation** - Sessions tab with week navigation, session rows, inline expand, and live today merge (completed 2026-03-27)
 - [ ] **Phase 2: Edit & Delete** - Right-click context menu, edit via BackfillSheetView, delete with confirmation
 
 ## Phase Details
@@ -27,11 +27,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Each session row displays category color, category name, intention, time range, and duration at a glance
   4. Clicking a session row expands it inline to show each app used; only one session is expanded at a time
   5. Today's in-progress session appears live in the list without duplicating completed sessions
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 01-01-PLAN.md — Migrate Session.appsUsed from [String] to [AppUsage] with per-app duration tracking
-- [ ] 01-02-PLAN.md — Sessions tab with week navigation, session card list, inline expansion, and live today merge
+- [x] 01-02-PLAN.md — Sessions tab with week navigation, session card list, inline expansion, and live today merge
 
 **UI hint**: yes
 
@@ -52,5 +52,5 @@ Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. List & Navigation | 0/2 | Not started | - |
+| 1. List & Navigation | 2/2 | Complete   | 2026-03-27 |
 | 2. Edit & Delete | 0/? | Not started | - |
