@@ -2,6 +2,7 @@ import SwiftUI
 
 enum AppTab: String, CaseIterable {
     case today = "Today"
+    case sessions = "Sessions"
     case calendar = "Calendar"
     case stats = "Stats"
     case settings = "Settings"
@@ -9,6 +10,7 @@ enum AppTab: String, CaseIterable {
     var icon: String {
         switch self {
         case .today: return "clock"
+        case .sessions: return "list.bullet.rectangle"
         case .calendar: return "calendar"
         case .stats: return "chart.bar"
         case .settings: return "gearshape"
@@ -44,6 +46,14 @@ struct MainWindowView: View {
                         Text("Starting up...")
                             .foregroundStyle(Theme.textTertiary)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                case .sessions:
+                    if let engine = appState.sessionEngine {
+                        SessionsTabView(
+                            sessionEngine: engine,
+                            syncEngine: appState.syncEngine,
+                            categories: appState.categoryConfig?.orderedCategoryNames ?? []
+                        )
                     }
                 case .calendar:
                     if let engine = appState.sessionEngine {
