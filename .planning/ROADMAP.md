@@ -27,7 +27,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Each session row displays category color, category name, intention, time range, and duration at a glance
   4. Clicking a session row expands it inline to show each app used; only one session is expanded at a time
   5. Today's in-progress session appears live in the list without duplicating completed sessions
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Migrate Session.appsUsed from [String] to [AppUsage] with per-app duration tracking
+- [ ] 01-02-PLAN.md — Sessions tab with week navigation, session card list, inline expansion, and live today merge
+
 **UI hint**: yes
 
 ### Phase 2: Edit & Delete
@@ -47,5 +52,5 @@ Phases execute in numeric order: 1 → 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. List & Navigation | 0/? | Not started | - |
+| 1. List & Navigation | 0/2 | Not started | - |
 | 2. Edit & Delete | 0/? | Not started | - |
