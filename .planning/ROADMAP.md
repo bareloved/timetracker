@@ -13,7 +13,7 @@ Two-phase delivery of a Sessions tab for Loom's main window. Phase 1 builds the 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: List & Navigation** - Sessions tab with week navigation, session rows, inline expand, and live today merge (completed 2026-03-27)
-- [ ] **Phase 2: Edit & Delete** - Right-click context menu, edit via BackfillSheetView, delete with confirmation
+- [x] **Phase 2: Edit & Delete** - Right-click context menu, edit via BackfillSheetView, delete with confirmation (completed 2026-03-27)
 
 ## Phase Details
 
@@ -43,10 +43,10 @@ Plans:
   1. Right-clicking a session row shows an Edit and a Delete option
   2. Choosing Edit opens the existing edit sheet pre-populated with that session's category, intention, and time range; saving updates the session in CloudKit and the list refreshes
   3. Choosing Delete shows a confirmation dialog; confirming removes the session from CloudKit and it disappears from the list
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 02-01-PLAN.md — Add edit/delete to session cards: context menu, double-click edit, inline delete confirmation, CloudKit persistence
+- [x] 02-01-PLAN.md — Add edit/delete to session cards: context menu, double-click edit, inline delete confirmation, CloudKit persistence
 
 **UI hint**: yes
 
@@ -58,4 +58,4 @@ Phases execute in numeric order: 1 → 2
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. List & Navigation | 2/2 | Complete   | 2026-03-27 |
-| 2. Edit & Delete | 0/1 | Not started | - |
+| 2. Edit & Delete | 1/1 | Complete   | 2026-03-27 |

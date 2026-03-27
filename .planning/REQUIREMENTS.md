@@ -26,11 +26,11 @@
 
 ### Edit & Delete
 
-- [ ] **EDIT-01**: Right-click context menu with Edit and Delete options
-- [ ] **EDIT-02**: Edit opens BackfillSheetView to modify category, intention, and time range
-- [ ] **EDIT-03**: Edits persist to CloudKit via SyncEngine
-- [ ] **DEL-01**: Delete shows confirmation dialog before removing
-- [ ] **DEL-02**: Delete removes session from CloudKit via SyncEngine
+- [x] **EDIT-01**: Right-click context menu with Edit and Delete options
+- [x] **EDIT-02**: Edit opens BackfillSheetView to modify category, intention, and time range
+- [x] **EDIT-03**: Edits persist to CloudKit via SyncEngine
+- [x] **DEL-01**: Delete shows confirmation dialog before removing
+- [x] **DEL-02**: Delete removes session from CloudKit via SyncEngine
 
 ## v2 Requirements
 
@@ -63,11 +63,11 @@
 | DETAIL-01 | Phase 1 | Complete |
 | DETAIL-02 | Phase 1 | Complete |
 | DETAIL-03 | Phase 1 | Complete |
-| EDIT-01 | Phase 2 | Pending |
-| EDIT-02 | Phase 2 | Pending |
-| EDIT-03 | Phase 2 | Pending |
-| DEL-01 | Phase 2 | Pending |
-| DEL-02 | Phase 2 | Pending |
+| EDIT-01 | Phase 2 | Complete |
+| EDIT-02 | Phase 2 | Complete |
+| EDIT-03 | Phase 2 | Complete |
+| DEL-01 | Phase 2 | Complete |
+| DEL-02 | Phase 2 | Complete |
 
 **Coverage:**
 - v1 requirements: 15 total
