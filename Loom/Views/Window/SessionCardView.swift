@@ -85,9 +85,9 @@ struct SessionCardView: View {
                         .foregroundStyle(Theme.textQuaternary)
                 }
 
-                // Bottom: time range — 10px regular, Theme.textQuaternary, e.g. "09:15 – 10:00"
+                // Bottom: time range
                 Text(formatTimeRange(start: session.startTime, end: session.endTime))
-                    .font(.system(size: 10))
+                    .font(.system(size: 12))
                     .foregroundStyle(Theme.textQuaternary)
 
                 // Expanded detail
