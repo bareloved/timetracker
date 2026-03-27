@@ -1,6 +1,7 @@
 import SwiftUI
 import ServiceManagement
 import UniformTypeIdentifiers
+import EventKit
 
 enum SettingsSection: String, CaseIterable, Identifiable {
     case general = "General"

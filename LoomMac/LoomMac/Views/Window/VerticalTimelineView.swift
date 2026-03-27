@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct VerticalTimelineView: View {
     let sessions: [Session]

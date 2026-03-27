@@ -69,6 +69,7 @@ final class AppState {
     var focusGuard: FocusGuard?
     private(set) var categoryConfig: CategoryConfig?
     private var remotePollTimer: Timer?
+    private var sleepTime: Date?
     @ObservationIgnored @AppStorage("showMenuBarText") var showMenuBarText = true
     @ObservationIgnored @AppStorage("goalCategory") var goalCategory = "Coding"
     @ObservationIgnored @AppStorage("goalHours") var goalHours = 0.0
@@ -132,12 +133,23 @@ final class AppState {
         // Idle return
         activityMonitor.onIdleReturn = { [weak self] duration in
             guard let self, duration > 300 else { return } // Only for 5+ min idle
+            let previousCategory = self.sessionEngine?.lastCategory
             self.idleReturnController.show(
                 idleDuration: duration,
-                onSelect: { label in
-                    self.createIdleEvent(label: label, duration: duration)
+                previousCategory: previousCategory,
+                onSelect: { [weak self] label in
+                    self?.createIdleEvent(label: label, duration: duration)
+                    self?.sessionEngine?.clearIdleState()
                 },
-                onDismiss: { }
+                onResume: { [weak self] in
+                    guard let self else { return }
+                    self.createIdleEvent(label: "Break", duration: duration)
+                    self.sessionEngine?.resumeSession()
+                    self.activityMonitor.start()
+                },
+                onDismiss: { [weak self] in
+                    self?.sessionEngine?.clearIdleState()
+                }
             )
         }
 
@@ -259,7 +271,7 @@ final class AppState {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, self.sessionEngine?.isTracking == true else { return }
-                engine.handleIdle(at: Date())
+                self.sleepTime = Date()
                 self.activityMonitor.pause()
             }
         }
@@ -270,9 +282,28 @@ final class AppState {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
-                guard let self, self.sessionEngine?.isTracking == true else { return }
-                self.focusGuard?.resetDriftTimer()
-                self.activityMonitor.resume()
+                guard let self else { return }
+                let wasTracking = self.sessionEngine?.isTracking == true
+                let wasIdle = self.sessionEngine?.isIdle == true
+
+                if wasTracking, let slept = self.sleepTime {
+                    let sleepDuration = Date().timeIntervalSince(slept)
+                    self.sleepTime = nil
+
+                    if sleepDuration >= 300 {
+                        // Long sleep — end session and show idle return panel
+                        engine.handleIdle(at: slept)
+                        self.activityMonitor.markIdle()
+                        self.activityMonitor.resume()
+                    } else {
+                        // Short sleep — just resume, session continues
+                        self.focusGuard?.resetDriftTimer()
+                        self.activityMonitor.resume()
+                    }
+                } else if wasIdle {
+                    self.focusGuard?.resetDriftTimer()
+                    self.activityMonitor.resume()
+                }
             }
         }
     }

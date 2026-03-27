@@ -3,7 +3,9 @@ import AppKit
 
 struct IdleReturnView: View {
     let idleDuration: TimeInterval
+    let previousCategory: String?
     let onSelect: (String) -> Void
+    let onResume: () -> Void
     let onSkip: () -> Void
 
     private let presets = ["Meeting", "Break", "Away"]
@@ -14,7 +16,7 @@ struct IdleReturnView: View {
         VStack(spacing: 12) {
             // Header
             VStack(spacing: 2) {
-                Text("👋")
+                Text("\u{1F44B}")
                     .font(.system(size: 20))
                 Text("Welcome back!")
                     .font(.system(size: 14, weight: .semibold))
@@ -22,6 +24,26 @@ struct IdleReturnView: View {
                 Text("You were away for \(formattedDuration)")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.textSecondary)
+            }
+
+            // Resume button — shown when there was an active session before idle
+            if let category = previousCategory {
+                Button(action: { onResume() }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "play.fill")
+                            .foregroundStyle(Color(hex: 0xc06040))
+                        Text("Continue \(category)")
+                            .fontWeight(.medium)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(10)
+                    .background(Color(hex: 0xc06040).opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(.plain)
+
+                Divider()
+                    .padding(.vertical, 2)
             }
 
             // Presets
@@ -60,7 +82,7 @@ struct IdleReturnView: View {
                 } else {
                     Button(action: { showCustom = true }) {
                         HStack(spacing: 8) {
-                            Text("✏️")
+                            Text("\u{270F}\u{FE0F}")
                             Text("Custom...")
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -73,7 +95,7 @@ struct IdleReturnView: View {
             }
 
             // Skip
-            Button("Skip — leave as idle") {
+            Button("Skip \u{2014} leave as idle") {
                 onSkip()
             }
             .font(.system(size: 10))
@@ -94,10 +116,10 @@ struct IdleReturnView: View {
 
     private func icon(for preset: String) -> String {
         switch preset {
-        case "Meeting": return "🤝"
-        case "Break": return "☕"
-        case "Away": return "🚶"
-        default: return "📌"
+        case "Meeting": return "\u{1F91D}"
+        case "Break": return "\u{2615}"
+        case "Away": return "\u{1F6B6}"
+        default: return "\u{1F4CC}"
         }
     }
 }
@@ -106,11 +128,22 @@ struct IdleReturnView: View {
 final class IdleReturnPanelController {
     private var panel: NSPanel?
 
-    func show(idleDuration: TimeInterval, onSelect: @escaping (String) -> Void, onDismiss: @escaping () -> Void) {
+    func show(
+        idleDuration: TimeInterval,
+        previousCategory: String?,
+        onSelect: @escaping (String) -> Void,
+        onResume: @escaping () -> Void,
+        onDismiss: @escaping () -> Void
+    ) {
         let view = IdleReturnView(
             idleDuration: idleDuration,
+            previousCategory: previousCategory,
             onSelect: { [weak self] label in
                 onSelect(label)
+                self?.dismiss()
+            },
+            onResume: { [weak self] in
+                onResume()
                 self?.dismiss()
             },
             onSkip: { [weak self] in
@@ -120,7 +153,7 @@ final class IdleReturnPanelController {
         )
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 260, height: 300),
+            contentRect: NSRect(x: 0, y: 0, width: 260, height: 360),
             styleMask: [.nonactivatingPanel, .titled, .closable],
             backing: .buffered,
             defer: false

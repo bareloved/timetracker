@@ -43,6 +43,16 @@ final class ActivityMonitor {
         timer = nil
     }
 
+    /// Called by the sleep handler to mark that we went idle externally.
+    /// Ensures onIdleReturn fires when polling resumes after wake.
+    func markIdle() {
+        isPaused = true
+        isIdleDetected = true
+        idleStartTime = idleStartTime ?? Date()
+        timer?.invalidate()
+        timer = nil
+    }
+
     func resume() {
         start()
     }
