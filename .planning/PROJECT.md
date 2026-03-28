@@ -16,19 +16,18 @@ Users can quickly review, inspect, and manage their tracked sessions in a struct
 - ✓ Session data model with category, intention, time range, apps used, distractions — existing
 - ✓ CloudKit-backed session storage with edit/delete support — existing
 - ✓ Category configuration and color system — existing
-- ✓ Sessions tab added to main window tab bar — Phase 1
-- ✓ Week navigation bar with day-of-week strip — Phase 1
-- ✓ Session list showing all sessions for the selected day — Phase 1
-- ✓ Each session row displays category, intention, time range, and duration — Phase 1
-- ✓ Inline expand on click to show detailed app usage breakdown (app name + duration) — Phase 1
-- ✓ Sessions update live for today — Phase 1
-
-- ✓ Edit session category, intention, and time range — Phase 2
-- ✓ Delete session with confirmation — Phase 2
+- ✓ Sessions tab added to main window tab bar — v1.0
+- ✓ Week navigation bar with day-of-week strip — v1.0
+- ✓ Session list showing all sessions for the selected day — v1.0
+- ✓ Each session row displays category, intention, time range, and duration — v1.0
+- ✓ Inline expand on click to show detailed app usage breakdown (app name + duration) — v1.0
+- ✓ Sessions update live for today — v1.0
+- ✓ Edit session category, intention, and time range — v1.0
+- ✓ Delete session with confirmation — v1.0
 
 ### Active
 
-(All v1 requirements validated — milestone complete)
+(None — next milestone not yet planned)
 
 ### Out of Scope
 
@@ -40,10 +39,11 @@ Users can quickly review, inspect, and manage their tracked sessions in a struct
 ## Context
 
 - Loom is a SwiftUI macOS menu-bar time tracker targeting macOS 14+
-- The app already has a Calendar tab with week navigation and day selection that serves as the UX reference
+- Sessions tab shipped in v1.0 with week navigation, card-style rows, accordion expansion, live today merge, edit, and delete
+- `Session.appsUsed` is now `[AppUsage]` with per-app duration tracking (migrated from `[String]` in v1.0)
 - Sessions are persisted via CloudKit (SyncEngine) and locally via CalendarWriter/EventKit
-- CalendarTabView already demonstrates the pattern for loading week sessions, merging live today data, and editing/deleting via CloudKit
 - The design system uses a warm/matte/earthy aesthetic with terracotta (#c06040) accent (documented in .design-engineer/system.md)
+- Total codebase: ~8,200 LOC Swift across Loom, LoomKit, LoomMac, LoomMobile
 
 ## Constraints
 
@@ -56,9 +56,12 @@ Users can quickly review, inspect, and manage their tracked sessions in a struct
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| New dedicated tab (not replacing/merging with existing) | Keeps Calendar view focused on timeline visualization; Sessions view focused on list + detail | — Pending |
-| Inline expand for detail (not sheet/panel) | Lighter interaction, keeps context of surrounding sessions visible | — Pending |
-| Reuse CalendarTabView's week navigation pattern | Consistency, less code, familiar UX | — Pending |
+| New dedicated tab (not replacing/merging with existing) | Keeps Calendar view focused on timeline visualization; Sessions view focused on list + detail | ✓ Good |
+| Inline expand for detail (not sheet/panel) | Lighter interaction, keeps context of surrounding sessions visible | ✓ Good |
+| Reuse CalendarTabView's week navigation pattern | Consistency, less code, familiar UX | ✓ Good |
+| ScrollView+ForEach over native List | Avoids confirmed DisclosureGroup animation bounce on macOS 14 | ✓ Good |
+| AppUsage duration via elapsed-time accumulation | More accurate than poll counting; TimeInterval is natural unit | ✓ Good |
+| Dual CloudKit writes (JSON + [String]) | Forward/backward compatibility across client versions | ✓ Good |
 
 ## Evolution
 
@@ -78,4 +81,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 after Phase 2 completion — all requirements validated, milestone complete*
+*Last updated: 2026-03-28 after v1.0 milestone*
