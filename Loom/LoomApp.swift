@@ -67,6 +67,7 @@ final class AppState {
     var launchPopupController = LaunchPopupController()
     var syncEngine: SyncEngine?
     var focusGuard: FocusGuard?
+    var reminderManager: ReminderManager?
     private(set) var categoryConfig: CategoryConfig?
     private var remotePollTimer: Timer?
     private var sleepTime: Date?
@@ -111,6 +112,15 @@ final class AppState {
 
         let guard_ = FocusGuard(sessionEngine: engine, categoryConfig: config)
         self.focusGuard = guard_
+
+        let reminder = ReminderManager()
+        reminder.onStartSession = { [weak self] in
+            self?.showSessionPicker()
+        }
+        reminder.isSessionActive = { [weak self] in
+            self?.sessionEngine?.currentSession != nil
+        }
+        self.reminderManager = reminder
 
         activityMonitor.onActivity = { [weak engine, weak guard_] record in
             engine?.process(record)
