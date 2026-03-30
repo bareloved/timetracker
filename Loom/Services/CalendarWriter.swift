@@ -16,6 +16,7 @@ final class CalendarWriter {
     @ObservationIgnored @AppStorage("calendarName") var calendarName = "Loom"
     @ObservationIgnored @AppStorage("calendarWriteEnabled") var writeEnabled = true
     @ObservationIgnored @AppStorage("timeRounding") var timeRounding: Int = 5 // minutes
+    var onWriteError: (() -> Void)?
 
     private func roundDown(_ date: Date) -> Date {
         guard timeRounding > 0 else { return date }
@@ -188,6 +189,7 @@ final class CalendarWriter {
             startUpdateTimer()
         } catch {
             print("Failed to create event: \(error)")
+            onWriteError?()
         }
     }
 
@@ -225,6 +227,7 @@ final class CalendarWriter {
             try eventStore.save(event, span: .thisEvent)
         } catch {
             print("Failed to finalize event: \(error)")
+            onWriteError?()
         }
 
         currentEventIdentifier = nil

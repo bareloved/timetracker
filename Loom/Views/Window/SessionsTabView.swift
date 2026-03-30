@@ -9,6 +9,7 @@ struct SessionsTabView: View {
     @State private var weekSessions: [Date: [Session]] = [:]
     @State private var expandedSessionId: UUID?
     @State private var editingSession: Session?
+    @State private var isLoading = false
 
     private let calendar = Calendar.current
 
@@ -80,8 +81,11 @@ struct SessionsTabView: View {
                 onSelectDate: { day in selectedDate = day }
             )
 
-            // Session list or empty state
-            if selectedDaySessions.isEmpty {
+            // Session list
+            if isLoading {
+                SkeletonLoadingView()
+                Spacer()
+            } else if selectedDaySessions.isEmpty {
                 Spacer()
                 Text("No sessions")
                     .font(.system(size: 13))
@@ -154,6 +158,7 @@ struct SessionsTabView: View {
     private func loadWeekSessions() {
         Task {
             guard let syncEngine else { weekSessions = [:]; return }
+            isLoading = true
             let weekStart = calendar.dateInterval(of: .weekOfYear, for: selectedDate)?.start ?? selectedDate
             let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? selectedDate
             let fetched = await syncEngine.fetchSessions(from: weekStart, to: weekEnd)
@@ -163,6 +168,7 @@ struct SessionsTabView: View {
                 grouped[dayStart, default: []].append(session)
             }
             weekSessions = grouped
+            isLoading = false
         }
     }
 

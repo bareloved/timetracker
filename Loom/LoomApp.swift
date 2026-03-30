@@ -115,7 +115,19 @@ final class AppState {
         self.categoryConfig = config
 
         let sync = SyncEngine(source: "mac")
+        sync.onSyncError = { [weak self] in
+            self?.syncError = true
+            self?.reminderManager?.notifySyncFailed()
+            self?.toastManager.show(.error, message: "Couldn't sync — check your connection", action: { [weak self] in
+                self?.syncError = false
+            }, actionLabel: "Dismiss")
+        }
         self.syncEngine = sync
+
+        calendarWriter.onWriteError = { [weak self] in
+            self?.reminderManager?.notifyCalendarWriteFailed()
+            self?.toastManager.show(.error, message: "Session couldn't be saved to calendar")
+        }
 
         let engine = SessionEngine(calendarWriter: calendarWriter, syncEngine: sync)
         self.sessionEngine = engine
@@ -255,6 +267,9 @@ final class AppState {
 
         let isLocallyTracking = sessionEngine?.isTracking == true
 
+        // Clear sync error on successful fetch
+        syncError = false
+
         print("[RemotePoll] activeID=\(syncEngine.activeSessionID?.uuidString ?? "nil") source=\(syncEngine.activeSource ?? "nil") localTracking=\(isLocallyTracking)")
 
         if let activeID = syncEngine.activeSessionID,
@@ -262,6 +277,8 @@ final class AppState {
            !isLocallyTracking {
             print("[RemotePoll] Starting remote session: \(activeID)")
             if let remoteSession = await syncEngine.fetchSession(by: activeID) {
+                reminderManager?.notifyRemoteSessionStarted(category: remoteSession.category)
+                toastManager.show(.info, message: "Tracking \(remoteSession.category) from another device")
                 startTracking(category: remoteSession.category, intention: remoteSession.intention)
             }
         }

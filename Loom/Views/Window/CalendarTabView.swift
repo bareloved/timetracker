@@ -17,6 +17,7 @@ struct CalendarTabView: View {
     @State private var hiddenCalendars: Set<String> = []
     @State private var selectedSessionId: String?
     @State private var editingSession: Session?
+    @State private var isLoading = false
 
     private let calendar = Calendar.current
 
@@ -118,27 +119,32 @@ struct CalendarTabView: View {
                 )
                 .padding(.horizontal, 12)
 
-                // Full-day timeline bar
-                DayTimelineBar(
-                    sessions: selectedDaySessions,
-                    date: selectedDate,
-                    isToday: calendar.isDateInToday(selectedDate),
-                    visibleHourRange: visibleHourRange
-                )
-                .padding(.horizontal, 40)
-                .padding(.vertical, 6)
+                if isLoading {
+                    SkeletonLoadingView()
+                    Spacer()
+                } else {
+                    // Full-day timeline bar
+                    DayTimelineBar(
+                        sessions: selectedDaySessions,
+                        date: selectedDate,
+                        isToday: calendar.isDateInToday(selectedDate),
+                        visibleHourRange: visibleHourRange
+                    )
+                    .padding(.horizontal, 40)
+                    .padding(.vertical, 6)
 
-                // Timeline
-                VerticalTimelineView(
-                    sessions: selectedDaySessions,
-                    isToday: calendar.isDateInToday(selectedDate),
-                    backgroundEvents: backgroundEvents,
-                    visibleHourRange: $visibleHourRange,
-                    selectedSessionId: $selectedSessionId,
-                    onSessionDoubleClick: { session in
-                        editingSession = session
-                    }
-                )
+                    // Timeline
+                    VerticalTimelineView(
+                        sessions: selectedDaySessions,
+                        isToday: calendar.isDateInToday(selectedDate),
+                        backgroundEvents: backgroundEvents,
+                        visibleHourRange: $visibleHourRange,
+                        selectedSessionId: $selectedSessionId,
+                        onSessionDoubleClick: { session in
+                            editingSession = session
+                        }
+                    )
+                }
             }
 
             // Floating add button
@@ -199,6 +205,7 @@ struct CalendarTabView: View {
                 loadBackgroundEvents()
                 return
             }
+            isLoading = true
             let weekStart = calendar.dateInterval(of: .weekOfYear, for: selectedDate)?.start ?? selectedDate
             let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? selectedDate
             let sessions = await syncEngine.fetchSessions(from: weekStart, to: weekEnd)
@@ -208,6 +215,7 @@ struct CalendarTabView: View {
                 grouped[dayStart, default: []].append(session)
             }
             weekSessions = grouped
+            isLoading = false
             loadBackgroundEvents()
         }
     }

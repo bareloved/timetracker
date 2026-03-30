@@ -13,6 +13,7 @@ public final class SyncEngine {
     private let cloudKit: CloudKitManager
     private let source: String // "mac" or "ios"
     private var heartbeatTimer: Timer?
+    public var onSyncError: (() -> Void)?
 
     public init(source: String) {
         self.cloudKit = CloudKitManager()
@@ -30,6 +31,7 @@ public final class SyncEngine {
             startHeartbeat(session)
         } catch {
             print("SyncEngine: failed to publish session start: \(error)")
+            onSyncError?()
         }
     }
 
@@ -39,6 +41,7 @@ public final class SyncEngine {
             try await cloudKit.updateActiveSession(session, source: source)
         } catch {
             print("SyncEngine: failed to publish session update: \(error)")
+            onSyncError?()
         }
     }
 
@@ -53,6 +56,7 @@ public final class SyncEngine {
             activeSource = nil
         } catch {
             print("SyncEngine: failed to publish session stop: \(error)")
+            onSyncError?()
         }
     }
 
