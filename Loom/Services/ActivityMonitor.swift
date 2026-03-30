@@ -61,7 +61,9 @@ final class ActivityMonitor {
         if IdleDetector.isIdle() {
             if !isIdleDetected {
                 isIdleDetected = true
-                idleStartTime = Date()
+                // Backdate to when user actually stopped input, not when we detected it
+                let actualIdle = IdleDetector.secondsSinceLastInput() ?? 300
+                idleStartTime = Date().addingTimeInterval(-actualIdle)
                 isPaused = true
                 latestActivity = nil
                 onIdle?()

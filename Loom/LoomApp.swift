@@ -126,19 +126,23 @@ final class AppState {
             engine?.process(record)
             guard_?.evaluate(record)
         }
-        activityMonitor.onIdle = { [weak engine, weak guard_] in
+        activityMonitor.onIdle = { [weak self, weak engine, weak guard_] in
+            let category = engine?.currentSession?.category
             if let distractions = guard_?.distractions, !distractions.isEmpty {
                 engine?.attachDistractions(distractions)
             }
             engine?.handleIdle(at: Date())
             guard_?.reset()
+            if let category {
+                self?.reminderManager?.notifySessionStoppedDueToIdle(category: category)
+            }
         }
 
-        // Hotkey
-        hotkeyManager.onToggle = { [weak self] in
-            self?.togglePause()
-        }
-        hotkeyManager.start()
+        // Hotkey disabled — too easy to trigger accidentally
+        // hotkeyManager.onToggle = { [weak self] in
+        //     self?.togglePause()
+        // }
+        // hotkeyManager.start()
 
         // Idle return
         activityMonitor.onIdleReturn = { [weak self] duration in

@@ -95,6 +95,29 @@ final class ReminderManager: NSObject, UNUserNotificationCenterDelegate {
         center.removeAllPendingNotificationRequests()
     }
 
+    // MARK: - Idle Stop Notification
+
+    func notifySessionStoppedDueToIdle(category: String) {
+        guard isAuthorized else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Session stopped"
+        content.body = "Your \(category) session was stopped due to inactivity"
+        content.sound = .default
+        content.categoryIdentifier = "SESSION_REMINDER"
+
+        let request = UNNotificationRequest(
+            identifier: "loom-idle-stop-\(UUID().uuidString)",
+            content: content,
+            trigger: nil // deliver immediately
+        )
+
+        center.add(request) { error in
+            if let error {
+                print("Failed to send idle stop notification: \(error)")
+            }
+        }
+    }
 
     // MARK: - UNUserNotificationCenterDelegate
 
