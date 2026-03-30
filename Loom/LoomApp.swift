@@ -68,6 +68,7 @@ final class AppState {
     var syncEngine: SyncEngine?
     var focusGuard: FocusGuard?
     var reminderManager: ReminderManager?
+    var toastManager = ToastManager()
     private(set) var categoryConfig: CategoryConfig?
     private var remotePollTimer: Timer?
     private var sleepTime: Date?

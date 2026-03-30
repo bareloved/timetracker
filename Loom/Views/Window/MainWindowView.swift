@@ -115,6 +115,9 @@ struct MainWindowView: View {
                 }
             }
         }
+        .overlay(alignment: .top) {
+            ToastOverlayView(toastManager: appState.toastManager)
+        }
         .frame(minWidth: 500, minHeight: 600)
         .background(Theme.background)
         .onAppear {
