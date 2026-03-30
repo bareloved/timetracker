@@ -43,18 +43,21 @@ ActivityMonitor (polls every 5s)
 - **FocusGuard** — Monitors off-category app usage during a session. After a configurable threshold, shows a popup nudging the user back. Tracks distractions (app name, duration, snoozed status) which get attached to the session on finalize.
 - **BrowserTracker** — Extracts active tab URLs from browsers via Accessibility API.
 - **CategoryConfigLoader** — Loads/saves `~/Library/Application Support/Loom/categories.json`. Default config bundled as resource `default-categories.json`.
-- **HotkeyManager** — Global hotkey (Option+Shift+T) via CGEvent tap.
+- **HotkeyManager** — Global hotkey (Option+Shift+T) via CGEvent tap. Currently disabled.
 - **IdleDetector** — IOKit HID-based idle time detection.
+- **ToastManager** — In-app toast notification queue. Shows success/info (auto-dismiss 3s) and warning/error (persistent) banners overlaid on the main window. Max 2 visible.
+- **ReminderManager** — macOS notification center integration. Handles daily session reminders and system notifications for idle stop, sleep stop, calendar write failure, sync failure, and remote session start.
 
 ### State Management
 
-Uses Swift `@Observable` classes with `@MainActor` isolation. `AppState` (in `LoomApp.swift`) is the root orchestrator that wires services together.
+Uses Swift `@Observable` classes with `@MainActor` isolation. `AppState` (in `LoomApp.swift`) is the root orchestrator that wires services together. `MenuBarState` enum (`.tracking`, `.stoppedIdle`, `.stoppedSleep`, `.inactive`) drives menu bar icon and text. `syncError` flag overlays a warning indicator.
 
 ### Views
 
 - **Menu Bar** (`Views/MenuBarView.swift`, `CurrentSessionView.swift`) — Dropdown with session status, timer, focus goals, start/stop controls
 - **Main Window** (`Views/Window/`) — Tab-based: Today, Calendar, Stats, Settings
 - **Popups** — `LaunchPopupView` (session start with category picker + intention), `FocusPopupView` (distraction nudge), `IdleReturnPanel` (resume after idle)
+- **Shared Components** — `ToastOverlayView` (in-app feedback banners), `SkeletonLoadingView` (pulsing placeholder for loading states), `EmptyStateView` (unified icon + title + subtitle for empty data)
 
 ### Models
 
